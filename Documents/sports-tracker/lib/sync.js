@@ -17,6 +17,13 @@ export async function syncMatches() {
     )
   `);
 
+  // adds the new columns to your existing table (does nothing if they already exist)
+  await pool.query(`
+    ALTER TABLE matches
+      ADD COLUMN IF NOT EXISTS home_crest TEXT,
+      ADD COLUMN IF NOT EXISTS away_crest TEXT
+  `);
+
   const res = await fetch("https://api.football-data.org/v4/matches", {
     headers: { "X-Auth-Token": process.env.FOOTBALL_API_KEY },
     cache: "no-store",
@@ -27,9 +34,12 @@ export async function syncMatches() {
   for (const m of matches) {
     await pool.query(
       `INSERT INTO matches
-         (id, competition, home_team, away_team, home_score, away_score, status, utc_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (id, competition, home_team, away_team, home_crest, away_crest,
+          home_score, away_score, status, utc_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (id) DO UPDATE SET
+         home_crest = EXCLUDED.home_crest,
+         away_crest = EXCLUDED.away_crest,
          home_score = EXCLUDED.home_score,
          away_score = EXCLUDED.away_score,
          status = EXCLUDED.status,
@@ -39,6 +49,8 @@ export async function syncMatches() {
         m.competition.name,
         m.homeTeam.name,
         m.awayTeam.name,
+        m.homeTeam.crest,
+        m.awayTeam.crest,
         m.score.fullTime.home,
         m.score.fullTime.away,
         m.status,

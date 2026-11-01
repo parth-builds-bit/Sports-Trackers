@@ -1,26 +1,28 @@
 @import "tailwindcss";
 
+/* dark is the default */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #09110d;
+  --card: #111c16;
+  --text: #ecf5ef;
+  --muted: #8aa395;
+  --chip: #1b2a22;
+  --accent: #22c55e;
+  --on-accent: #04130a;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* the theme switch adds the class "light" to the page */
+.light {
+  --bg: #f1f6f3;
+  --card: #ffffff;
+  --text: #0f1f17;
+  --muted: #5f7468;
+  --chip: #e1eae5;
+  --accent: #16a34a;
+  --on-accent: #ffffff;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
 }
