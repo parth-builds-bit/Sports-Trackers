@@ -1,12 +1,19 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { DM_Sans, Oswald } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const body = DM_Sans({ subsets: ["latin"], variable: "--font-body" });
+const display = Oswald({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
   title: "Live Football Scores",
   description: "A live football scores tracker",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#09110d",
 };
 
 export default function RootLayout({
@@ -15,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" data-accent="green">
+      <body className={`${body.variable} ${display.variable}`}>{children}</body>
     </html>
   );
 }

@@ -89,6 +89,16 @@ const COMPETITIONS = [
   { code: "WC", name: "World Cup" },
 ];
 
+// the colours here are only for the little picker dots;
+// the real values live in globals.css
+const ACCENTS = [
+  { key: "green", label: "Green", color: "#22c55e" },
+  { key: "blue", label: "Blue", color: "#3b82f6" },
+  { key: "purple", label: "Purple", color: "#8b5cf6" },
+  { key: "orange", label: "Orange", color: "#f97316" },
+  { key: "pink", label: "Pink", color: "#ec4899" },
+];
+
 const DAYS = [
   { key: "yesterday", label: "Yesterday", offset: -1 },
   { key: "today", label: "Today", offset: 0 },
@@ -132,7 +142,7 @@ function Pill(props: {
   return (
     <button
       onClick={props.onClick}
-      className="relative rounded-full bg-[var(--chip)] px-3 py-1 text-sm"
+      className="relative shrink-0 whitespace-nowrap rounded-full bg-[var(--chip)] px-3 py-1.5 text-sm"
     >
       {props.active && (
         <motion.span
@@ -152,13 +162,59 @@ function Pill(props: {
   );
 }
 
+// a row of pills that scrolls sideways on phones and wraps on bigger screens
+function PillRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+      {children}
+    </div>
+  );
+}
+
 function Crest({ url, size = "h-6 w-6" }: { url: string | null; size?: string }) {
-  if (!url) return <span className={"inline-block " + size} />;
+  if (!url) return <span className={"inline-block shrink-0 " + size} />;
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="" className={size + " object-contain"} />
+      <img src={url} alt="" className={"shrink-0 object-contain " + size} />
     </>
+  );
+}
+
+// grey placeholder cards shown while matches load
+function CardSkeletons({ count = 4 }: { count?: number }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className="flex animate-pulse items-center gap-3 rounded-xl bg-[var(--card)] p-3"
+        >
+          <div className="flex-1 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-full bg-[var(--chip)]" />
+              <div className="h-3 w-40 rounded bg-[var(--chip)]" />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-full bg-[var(--chip)]" />
+              <div className="h-3 w-32 rounded bg-[var(--chip)]" />
+            </div>
+          </div>
+          <div className="h-6 w-12 rounded bg-[var(--chip)]" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// grey placeholder rows shown while a table loads
+function TableSkeleton() {
+  return (
+    <div className="animate-pulse space-y-2 rounded-xl bg-[var(--card)] p-3">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="h-5 rounded bg-[var(--chip)]" />
+      ))}
+    </div>
   );
 }
 
@@ -169,7 +225,7 @@ function Score({ value }: { value: number | null }) {
       initial={{ scale: 1.8 }}
       animate={{ scale: 1 }}
       transition={{ type: "spring", stiffness: 300, damping: 12 }}
-      className="inline-block font-bold tabular-nums"
+      className="font-display inline-block text-lg font-bold tabular-nums"
     >
       {value ?? "-"}
     </motion.span>
@@ -194,7 +250,7 @@ function TeamRow(props: {
         whileTap={{ scale: 0.6 }}
         whileHover={{ scale: 1.3 }}
         animate={{ scale: props.fav ? [1, 1.6, 1] : 1 }}
-        className={props.fav ? "text-yellow-400" : "text-[var(--muted)]"}
+        className={"px-1 " + (props.fav ? "text-yellow-400" : "text-[var(--muted)]")}
       >
         ★
       </motion.button>
@@ -224,7 +280,7 @@ function MatchCard(props: {
       onClick={() => onOpen(m.id)}
       className="flex cursor-pointer items-center gap-3 rounded-xl bg-[var(--card)] p-3 shadow-sm"
     >
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <TeamRow
           name={m.home_team}
           crest={m.home_crest}
@@ -247,21 +303,21 @@ function MatchCard(props: {
   );
 }
 
-// the dark background + panel used by every pop-up
+// pop-ups: a bottom sheet on phones, a centred card on bigger screens
 function Overlay(props: { onClose: () => void; children: React.ReactNode }) {
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={props.onClose}
     >
       <motion.div
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-[var(--card)] p-5"
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.9, y: 20 }}
+        className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-[var(--card)] p-5 sm:max-w-md sm:rounded-2xl"
+        initial={{ opacity: 0, y: 60 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 60 }}
         onClick={(e) => e.stopPropagation()}
       >
         {props.children}
@@ -316,7 +372,11 @@ function MatchModal(props: {
             <p className="text-xs text-[var(--muted)]">Matchday {m.matchday}</p>
           )}
         </div>
-        <button onClick={onClose} aria-label="Close" className="text-xl text-[var(--muted)]">
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="px-2 text-xl text-[var(--muted)]"
+        >
           ✕
         </button>
       </div>
@@ -330,7 +390,7 @@ function MatchModal(props: {
           <span className="text-sm underline decoration-dotted">{m.home_team}</span>
         </button>
         <div>
-          <p className="text-3xl font-bold tabular-nums">
+          <p className="font-display text-4xl font-bold tabular-nums">
             {m.home_score ?? "-"} : {m.away_score ?? "-"}
           </p>
           <p className="text-xs text-[var(--muted)]">{statusText[m.status] ?? m.status}</p>
@@ -345,25 +405,29 @@ function MatchModal(props: {
       </div>
 
       <dl className="space-y-2 text-sm">
-        <div className="flex justify-between">
+        <div className="flex justify-between gap-4">
           <dt className="text-[var(--muted)]">Kick-off</dt>
-          <dd>{kickoff}</dd>
+          <dd className="text-right">{kickoff}</dd>
         </div>
-        <div className="flex justify-between">
+        <div className="flex justify-between gap-4">
           <dt className="text-[var(--muted)]">Venue</dt>
-          <dd>{m.venue ?? "Not available"}</dd>
+          <dd className="text-right">{m.venue ?? "Not available"}</dd>
         </div>
-        <div className="flex justify-between">
+        <div className="flex justify-between gap-4">
           <dt className="text-[var(--muted)]">Referee</dt>
-          <dd>{m.referee ?? "Not announced"}</dd>
+          <dd className="text-right">{m.referee ?? "Not announced"}</dd>
         </div>
       </dl>
 
-      <h3 className="mb-2 mt-5 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+      <h3 className="font-display mb-2 mt-5 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
         Head to head
       </h3>
       {!h2h && !h2hError && (
-        <p className="animate-pulse text-sm text-[var(--muted)]">Loading...</p>
+        <div className="animate-pulse space-y-2">
+          <div className="h-4 w-3/4 rounded bg-[var(--chip)]" />
+          <div className="h-3 w-full rounded bg-[var(--chip)]" />
+          <div className="h-3 w-full rounded bg-[var(--chip)]" />
+        </div>
       )}
       {h2hError && (
         <p className="text-sm text-[var(--muted)]">Head to head is not available.</p>
@@ -380,7 +444,7 @@ function MatchModal(props: {
           <ul className="space-y-1 text-xs text-[var(--muted)]">
             {h2h.recent.map((r, i) => (
               <li key={i} className="flex justify-between gap-2">
-                <span>{new Date(r.date).toLocaleDateString()}</span>
+                <span className="shrink-0">{new Date(r.date).toLocaleDateString()}</span>
                 <span className="truncate text-right">
                   {r.home} {r.homeScore ?? "-"} : {r.awayScore ?? "-"} {r.away}
                 </span>
@@ -416,20 +480,32 @@ function TeamModal({ id, onClose }: { id: number; onClose: () => void }) {
   return (
     <Overlay onClose={onClose}>
       <div className="mb-3 flex justify-end">
-        <button onClick={onClose} aria-label="Close" className="text-xl text-[var(--muted)]">
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="px-2 text-xl text-[var(--muted)]"
+        >
           ✕
         </button>
       </div>
       {error && <p className="text-[var(--muted)]">{error}</p>}
       {!team && !error && (
-        <p className="animate-pulse text-[var(--muted)]">Loading team...</p>
+        <div className="animate-pulse space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-14 w-14 rounded-full bg-[var(--chip)]" />
+            <div className="h-5 w-40 rounded bg-[var(--chip)]" />
+          </div>
+          <div className="h-4 w-full rounded bg-[var(--chip)]" />
+          <div className="h-4 w-full rounded bg-[var(--chip)]" />
+          <div className="h-4 w-2/3 rounded bg-[var(--chip)]" />
+        </div>
       )}
       {team && (
         <>
           <div className="mb-4 flex items-center gap-3">
             <Crest url={team.crest} size="h-14 w-14" />
             <div>
-              <h2 className="text-xl font-bold">{team.name}</h2>
+              <h2 className="font-display text-xl font-bold">{team.name}</h2>
               {team.coach && <p className="text-sm text-[var(--muted)]">Coach: {team.coach}</p>}
             </div>
           </div>
@@ -442,15 +518,15 @@ function TeamModal({ id, onClose }: { id: number; onClose: () => void }) {
               </div>
             )}
             {team.venue && (
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-4">
                 <dt className="text-[var(--muted)]">Stadium</dt>
-                <dd>{team.venue}</dd>
+                <dd className="text-right">{team.venue}</dd>
               </div>
             )}
             {team.colors && (
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-4">
                 <dt className="text-[var(--muted)]">Club colours</dt>
-                <dd>{team.colors}</dd>
+                <dd className="text-right">{team.colors}</dd>
               </div>
             )}
             {team.competitions.length > 0 && (
@@ -461,7 +537,7 @@ function TeamModal({ id, onClose }: { id: number; onClose: () => void }) {
             )}
           </dl>
 
-          <h3 className="mb-2 mt-5 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+          <h3 className="font-display mb-2 mt-5 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
             Squad
           </h3>
           {team.squad.length === 0 ? (
@@ -487,35 +563,35 @@ function TeamModal({ id, onClose }: { id: number; onClose: () => void }) {
 function StandingsTable({ rows }: { rows: Row[] }) {
   return (
     <div className="overflow-x-auto rounded-xl bg-[var(--card)] p-2">
-      <table className="w-full text-sm">
+      <table className="w-full text-xs sm:text-sm">
         <thead className="text-xs text-[var(--muted)]">
           <tr>
-            <th className="px-2 py-2 text-left">#</th>
-            <th className="px-2 py-2 text-left">Team</th>
-            <th className="px-2 py-2">P</th>
-            <th className="px-2 py-2">W</th>
-            <th className="px-2 py-2">D</th>
-            <th className="px-2 py-2">L</th>
-            <th className="px-2 py-2">GD</th>
-            <th className="px-2 py-2">Pts</th>
+            <th className="px-1 py-2 text-left sm:px-2">#</th>
+            <th className="px-1 py-2 text-left sm:px-2">Team</th>
+            <th className="px-1 py-2 sm:px-2">P</th>
+            <th className="px-1 py-2 sm:px-2">W</th>
+            <th className="px-1 py-2 sm:px-2">D</th>
+            <th className="px-1 py-2 sm:px-2">L</th>
+            <th className="px-1 py-2 sm:px-2">GD</th>
+            <th className="px-1 py-2 sm:px-2">Pts</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.team} className="border-t border-[var(--chip)] text-center">
-              <td className="px-2 py-2 text-left">{r.position}</td>
-              <td className="px-2 py-2 text-left">
+              <td className="px-1 py-2 text-left sm:px-2">{r.position}</td>
+              <td className="px-1 py-2 text-left sm:px-2">
                 <div className="flex items-center gap-2">
                   <Crest url={r.crest} size="h-5 w-5" />
                   <span className="truncate">{r.team}</span>
                 </div>
               </td>
-              <td className="px-2 py-2">{r.played}</td>
-              <td className="px-2 py-2">{r.won}</td>
-              <td className="px-2 py-2">{r.draw}</td>
-              <td className="px-2 py-2">{r.lost}</td>
-              <td className="px-2 py-2">{r.gd}</td>
-              <td className="px-2 py-2 font-bold">{r.points}</td>
+              <td className="px-1 py-2 sm:px-2">{r.played}</td>
+              <td className="px-1 py-2 sm:px-2">{r.won}</td>
+              <td className="px-1 py-2 sm:px-2">{r.draw}</td>
+              <td className="px-1 py-2 sm:px-2">{r.lost}</td>
+              <td className="px-1 py-2 sm:px-2">{r.gd}</td>
+              <td className="font-display px-1 py-2 font-bold sm:px-2">{r.points}</td>
             </tr>
           ))}
         </tbody>
@@ -527,22 +603,22 @@ function StandingsTable({ rows }: { rows: Row[] }) {
 function ScorersTable({ rows }: { rows: Scorer[] }) {
   return (
     <div className="overflow-x-auto rounded-xl bg-[var(--card)] p-2">
-      <table className="w-full text-sm">
+      <table className="w-full text-xs sm:text-sm">
         <thead className="text-xs text-[var(--muted)]">
           <tr>
-            <th className="px-2 py-2 text-left">#</th>
-            <th className="px-2 py-2 text-left">Player</th>
-            <th className="px-2 py-2">P</th>
-            <th className="px-2 py-2">Goals</th>
-            <th className="px-2 py-2">Ast</th>
-            <th className="px-2 py-2">Pen</th>
+            <th className="px-1 py-2 text-left sm:px-2">#</th>
+            <th className="px-1 py-2 text-left sm:px-2">Player</th>
+            <th className="px-1 py-2 sm:px-2">P</th>
+            <th className="px-1 py-2 sm:px-2">Goals</th>
+            <th className="px-1 py-2 sm:px-2">Ast</th>
+            <th className="px-1 py-2 sm:px-2">Pen</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.name + i} className="border-t border-[var(--chip)] text-center">
-              <td className="px-2 py-2 text-left">{i + 1}</td>
-              <td className="px-2 py-2 text-left">
+              <td className="px-1 py-2 text-left sm:px-2">{i + 1}</td>
+              <td className="px-1 py-2 text-left sm:px-2">
                 <div className="flex items-center gap-2">
                   <Crest url={r.crest} size="h-5 w-5" />
                   <div className="min-w-0">
@@ -551,10 +627,10 @@ function ScorersTable({ rows }: { rows: Scorer[] }) {
                   </div>
                 </div>
               </td>
-              <td className="px-2 py-2">{r.played ?? "-"}</td>
-              <td className="px-2 py-2 font-bold">{r.goals}</td>
-              <td className="px-2 py-2">{r.assists ?? "-"}</td>
-              <td className="px-2 py-2">{r.penalties ?? "-"}</td>
+              <td className="px-1 py-2 sm:px-2">{r.played ?? "-"}</td>
+              <td className="font-display px-1 py-2 font-bold sm:px-2">{r.goals}</td>
+              <td className="px-1 py-2 sm:px-2">{r.assists ?? "-"}</td>
+              <td className="px-1 py-2 sm:px-2">{r.penalties ?? "-"}</td>
             </tr>
           ))}
         </tbody>
@@ -570,6 +646,7 @@ export default function Home() {
   const [filter, setFilter] = useState("ALL");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [theme, setTheme] = useState("dark");
+  const [accent, setAccent] = useState("green");
   const [view, setView] = useState("matches");
   const [day, setDay] = useState("today");
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -608,12 +685,18 @@ export default function Home() {
       if (saved) setFavorites(JSON.parse(saved));
       const savedTheme = localStorage.getItem("theme");
       if (savedTheme) setTheme(savedTheme);
+      const savedAccent = localStorage.getItem("accent");
+      if (savedAccent) setAccent(savedAccent);
     } catch {}
   }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.dataset.accent = accent;
+  }, [accent]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -679,6 +762,13 @@ export default function Home() {
     setTheme(next);
     try {
       localStorage.setItem("theme", next);
+    } catch {}
+  }
+
+  function chooseAccent(key: string) {
+    setAccent(key);
+    try {
+      localStorage.setItem("accent", key);
     } catch {}
   }
 
@@ -748,31 +838,54 @@ export default function Home() {
     { key: "scorers", label: "Top scorers" },
   ];
 
+  const sectionTitle =
+    "font-display mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]";
+
   return (
-    <main className="min-h-screen p-4">
+    <main className="min-h-screen overflow-x-hidden p-3 sm:p-4">
       <div className="mx-auto max-w-2xl">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <motion.h1
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-2xl font-bold"
+              className="font-display text-2xl font-bold sm:text-3xl"
             >
               ⚽ Live Football <span className="text-[var(--accent)]">Scores</span>
             </motion.h1>
-            <p className="mb-4 text-sm text-[var(--muted)]">Last updated: {updated}</p>
+            <p className="mb-3 text-sm text-[var(--muted)]">Last updated: {updated}</p>
           </div>
           <motion.button
             onClick={toggleTheme}
             whileTap={{ scale: 0.85, rotate: 20 }}
             aria-label="Switch theme"
-            className="rounded-full bg-[var(--chip)] px-3 py-2 text-lg"
+            className="shrink-0 rounded-full bg-[var(--chip)] px-3 py-2 text-lg"
           >
             {theme === "dark" ? "☀️" : "🌙"}
           </motion.button>
         </div>
 
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 flex items-center gap-3">
+          <span className="text-xs text-[var(--muted)]">Accent</span>
+          {ACCENTS.map((a) => (
+            <motion.button
+              key={a.key}
+              onClick={() => chooseAccent(a.key)}
+              whileTap={{ scale: 0.8 }}
+              whileHover={{ scale: 1.15 }}
+              aria-label={a.label + " accent"}
+              style={{ backgroundColor: a.color }}
+              className={
+                "h-6 w-6 rounded-full " +
+                (accent === a.key
+                  ? "ring-2 ring-[var(--text)] ring-offset-2 ring-offset-[var(--bg)]"
+                  : "")
+              }
+            />
+          ))}
+        </div>
+
+        <PillRow>
           {views.map((v) => (
             <Pill
               key={v.key}
@@ -782,11 +895,11 @@ export default function Home() {
               onClick={() => setView(v.key)}
             />
           ))}
-        </div>
+        </PillRow>
 
         {view === "matches" && (
           <>
-            <div className="mb-3 flex gap-2">
+            <PillRow>
               {DAYS.map((d) => (
                 <Pill
                   key={d.key}
@@ -796,9 +909,9 @@ export default function Home() {
                   onClick={() => setDay(d.key)}
                 />
               ))}
-            </div>
+            </PillRow>
 
-            <div className="mb-6 flex flex-wrap gap-2">
+            <PillRow>
               {leagueFilters.map((f) => (
                 <Pill
                   key={f.key}
@@ -808,11 +921,9 @@ export default function Home() {
                   onClick={() => setFilter(f.key)}
                 />
               ))}
-            </div>
+            </PillRow>
 
-            {!loaded && (
-              <p className="animate-pulse text-[var(--muted)]">Loading matches...</p>
-            )}
+            {!loaded && <CardSkeletons count={5} />}
 
             {loaded && visible.length === 0 && !showLive && (
               <p className="text-[var(--muted)]">
@@ -824,7 +935,7 @@ export default function Home() {
 
             {showLive && (
               <section className="mb-6">
-                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-red-500">
+                <h2 className="font-display mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-red-500">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
                   Live now
                 </h2>
@@ -855,9 +966,7 @@ export default function Home() {
                   exit={{ opacity: 0 }}
                   className="mb-6"
                 >
-                  <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-                    {competition}
-                  </h2>
+                  <h2 className={sectionTitle}>{competition}</h2>
                   <div className="space-y-2">
                     <AnimatePresence>
                       {list.map((m, i) => (
@@ -879,7 +988,7 @@ export default function Home() {
         )}
 
         {view !== "matches" && (
-          <div className="mb-6 flex flex-wrap gap-2">
+          <PillRow>
             {COMPETITIONS.map((c) => (
               <Pill
                 key={c.code}
@@ -889,7 +998,7 @@ export default function Home() {
                 onClick={() => selectLeague(c.code)}
               />
             ))}
-          </div>
+          </PillRow>
         )}
 
         {view === "fixtures" && (
@@ -898,33 +1007,31 @@ export default function Home() {
               <button
                 onClick={() => setRequestedMatchday(Math.max(1, (matchday ?? 1) - 1))}
                 disabled={!matchday || matchday <= 1}
-                className="rounded-full bg-[var(--chip)] px-4 py-1 disabled:opacity-40"
+                className="rounded-full bg-[var(--chip)] px-5 py-2 disabled:opacity-40"
               >
                 ‹
               </button>
-              <span className="font-semibold">Matchday {matchday ?? "..."}</span>
+              <span className="font-display text-lg font-semibold">
+                Matchday {matchday ?? "..."}
+              </span>
               <button
                 onClick={() => setRequestedMatchday((matchday ?? 0) + 1)}
                 disabled={!matchday}
-                className="rounded-full bg-[var(--chip)] px-4 py-1 disabled:opacity-40"
+                className="rounded-full bg-[var(--chip)] px-5 py-2 disabled:opacity-40"
               >
                 ›
               </button>
             </div>
 
             {fixturesError && <p className="text-[var(--muted)]">{fixturesError}</p>}
-            {!fixtures && !fixturesError && (
-              <p className="animate-pulse text-[var(--muted)]">Loading fixtures...</p>
-            )}
+            {!fixtures && !fixturesError && <CardSkeletons count={5} />}
             {fixtures && fixtures.length === 0 && (
               <p className="text-[var(--muted)]">No matches for this matchday.</p>
             )}
 
             {Object.entries(fixturesByDate).map(([date, list]) => (
               <section key={date} className="mb-6">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-                  {date}
-                </h2>
+                <h2 className={sectionTitle}>{date}</h2>
                 <div className="space-y-2">
                   {list.map((m, i) => (
                     <MatchCard
@@ -945,20 +1052,14 @@ export default function Home() {
         {view === "standings" && (
           <>
             {tableError && <p className="text-[var(--muted)]">{tableError}</p>}
-            {!groups && !tableError && (
-              <p className="animate-pulse text-[var(--muted)]">Loading table...</p>
-            )}
+            {!groups && !tableError && <TableSkeleton />}
             {groups && groups.length === 0 && (
               <p className="text-[var(--muted)]">No table data for this competition yet.</p>
             )}
             {groups &&
               groups.map((g, i) => (
                 <section key={(g.name ?? "table") + i} className="mb-6">
-                  {g.name && (
-                    <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
-                      {prettyGroup(g.name)}
-                    </h2>
-                  )}
+                  {g.name && <h2 className={sectionTitle}>{prettyGroup(g.name)}</h2>}
                   <StandingsTable rows={g.table} />
                 </section>
               ))}
@@ -968,9 +1069,7 @@ export default function Home() {
         {view === "scorers" && (
           <>
             {scorersError && <p className="text-[var(--muted)]">{scorersError}</p>}
-            {!scorers && !scorersError && (
-              <p className="animate-pulse text-[var(--muted)]">Loading top scorers...</p>
-            )}
+            {!scorers && !scorersError && <TableSkeleton />}
             {scorers && scorers.length === 0 && (
               <p className="text-[var(--muted)]">No scorer data for this competition yet.</p>
             )}

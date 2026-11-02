@@ -18,11 +18,30 @@
   --text: #0f1f17;
   --muted: #5f7468;
   --chip: #e1eae5;
-  --accent: #16a34a;
-  --on-accent: #ffffff;
 }
+
+/* accent colours: the page sets data-accent="blue" etc. on the html tag */
+html[data-accent="green"]  { --accent: #22c55e; --on-accent: #04130a; }
+html[data-accent="blue"]   { --accent: #3b82f6; --on-accent: #ffffff; }
+html[data-accent="purple"] { --accent: #8b5cf6; --on-accent: #ffffff; }
+html[data-accent="orange"] { --accent: #f97316; --on-accent: #1a0b00; }
+html[data-accent="pink"]   { --accent: #ec4899; --on-accent: #ffffff; }
 
 body {
   background: var(--bg);
   color: var(--text);
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+/* scoreboard-style font for titles and numbers */
+.font-display {
+  font-family: var(--font-display), system-ui, sans-serif;
+}
+
+/* hides the scrollbar on rows that scroll sideways on phones */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
