@@ -8,6 +8,8 @@ type Match = {
   competition: string;
   home_team: string;
   away_team: string;
+  home_team_id: number | null;
+  away_team_id: number | null;
   home_crest: string | null;
   away_crest: string | null;
   home_score: number | null;
@@ -29,6 +31,44 @@ type Row = {
   lost: number;
   gd: number;
   points: number;
+};
+
+type Scorer = {
+  name: string;
+  nationality: string | null;
+  team: string;
+  crest: string | null;
+  played: number | null;
+  goals: number;
+  assists: number | null;
+  penalties: number | null;
+};
+
+type H2H = {
+  played: number;
+  goals: number;
+  homeWins: number;
+  draws: number;
+  awayWins: number;
+  recent: {
+    date: string;
+    home: string;
+    away: string;
+    homeScore: number | null;
+    awayScore: number | null;
+  }[];
+};
+
+type TeamInfo = {
+  name: string;
+  crest: string | null;
+  founded: number | null;
+  venue: string | null;
+  colors: string | null;
+  website: string | null;
+  coach: string | null;
+  competitions: string[];
+  squad: { name: string; position: string | null; nationality: string | null }[];
 };
 
 const DAYS = [
@@ -186,7 +226,50 @@ function MatchCard(props: {
   );
 }
 
-function MatchModal({ m, onClose }: { m: Match; onClose: () => void }) {
+// the dark background + white-ish panel used by every pop-up
+function Overlay(props: { onClose: () => void; children: React.ReactNode }) {
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={props.onClose}
+    >
+      <motion.div
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-[var(--card)] p-5"
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {props.children}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function MatchModal(props: {
+  m: Match;
+  onClose: () => void;
+  onTeam: (id: number) => void;
+}) {
+  const { m, onClose, onTeam } = props;
+  const [h2h, setH2h] = useState<H2H | null>(null);
+  const [h2hError, setH2hError] = useState(false);
+
+  useEffect(() => {
+    setH2h(null);
+    setH2hError(false);
+    fetch("/api/h2h?match=" + m.id)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error("h2h failed");
+        setH2h(data);
+      })
+      .catch(() => setH2hError(true));
+  }, [m.id]);
+
   const kickoff = new Date(m.utc_date).toLocaleString([], {
     weekday: "short",
     day: "numeric",
@@ -204,69 +287,179 @@ function MatchModal({ m, onClose }: { m: Match; onClose: () => void }) {
   };
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-    >
-      <motion.div
-        className="w-full max-w-md rounded-2xl bg-[var(--card)] p-5"
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.9, y: 20 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <p className="text-sm font-semibold text-[var(--accent)]">{m.competition}</p>
-            {m.matchday && (
-              <p className="text-xs text-[var(--muted)]">Matchday {m.matchday}</p>
+    <Overlay onClose={onClose}>
+      <div className="mb-4 flex items-start justify-between">
+        <div>
+          <p className="text-sm font-semibold text-[var(--accent)]">{m.competition}</p>
+          {m.matchday && (
+            <p className="text-xs text-[var(--muted)]">Matchday {m.matchday}</p>
+          )}
+        </div>
+        <button onClick={onClose} aria-label="Close" className="text-xl text-[var(--muted)]">
+          ✕
+        </button>
+      </div>
+
+      <div className="mb-5 flex items-center justify-between text-center">
+        <button
+          onClick={() => m.home_team_id && onTeam(m.home_team_id)}
+          className="flex w-1/3 flex-col items-center gap-2"
+        >
+          <Crest url={m.home_crest} size="h-12 w-12" />
+          <span className="text-sm underline decoration-dotted">{m.home_team}</span>
+        </button>
+        <div>
+          <p className="text-3xl font-bold tabular-nums">
+            {m.home_score ?? "-"} : {m.away_score ?? "-"}
+          </p>
+          <p className="text-xs text-[var(--muted)]">{statusText[m.status] ?? m.status}</p>
+        </div>
+        <button
+          onClick={() => m.away_team_id && onTeam(m.away_team_id)}
+          className="flex w-1/3 flex-col items-center gap-2"
+        >
+          <Crest url={m.away_crest} size="h-12 w-12" />
+          <span className="text-sm underline decoration-dotted">{m.away_team}</span>
+        </button>
+      </div>
+
+      <dl className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <dt className="text-[var(--muted)]">Kick-off</dt>
+          <dd>{kickoff}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-[var(--muted)]">Venue</dt>
+          <dd>{m.venue ?? "Not available"}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-[var(--muted)]">Referee</dt>
+          <dd>{m.referee ?? "Not announced"}</dd>
+        </div>
+      </dl>
+
+      <h3 className="mb-2 mt-5 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+        Head to head
+      </h3>
+      {!h2h && !h2hError && (
+        <p className="animate-pulse text-sm text-[var(--muted)]">Loading...</p>
+      )}
+      {h2hError && (
+        <p className="text-sm text-[var(--muted)]">Head to head is not available.</p>
+      )}
+      {h2h && h2h.played === 0 && (
+        <p className="text-sm text-[var(--muted)]">No earlier meetings in the data.</p>
+      )}
+      {h2h && h2h.played > 0 && (
+        <>
+          <p className="mb-2 text-sm">
+            Last {h2h.played} meetings: <b>{m.home_team}</b> {h2h.homeWins} wins ·{" "}
+            {h2h.draws} draws · <b>{m.away_team}</b> {h2h.awayWins} wins
+          </p>
+          <ul className="space-y-1 text-xs text-[var(--muted)]">
+            {h2h.recent.map((r, i) => (
+              <li key={i} className="flex justify-between gap-2">
+                <span>{new Date(r.date).toLocaleDateString()}</span>
+                <span className="truncate text-right">
+                  {r.home} {r.homeScore ?? "-"} : {r.awayScore ?? "-"} {r.away}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <p className="mt-4 text-xs text-[var(--muted)]">
+        Goal scorers and line-ups are not included in the free data plan.
+      </p>
+    </Overlay>
+  );
+}
+
+function TeamModal({ id, onClose }: { id: number; onClose: () => void }) {
+  const [team, setTeam] = useState<TeamInfo | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setTeam(null);
+    setError("");
+    fetch("/api/team?id=" + id)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Could not load this team");
+        setTeam(data.team);
+      })
+      .catch((e) => setError(e.message));
+  }, [id]);
+
+  return (
+    <Overlay onClose={onClose}>
+      <div className="mb-3 flex justify-end">
+        <button onClick={onClose} aria-label="Close" className="text-xl text-[var(--muted)]">
+          ✕
+        </button>
+      </div>
+      {error && <p className="text-[var(--muted)]">{error}</p>}
+      {!team && !error && (
+        <p className="animate-pulse text-[var(--muted)]">Loading team...</p>
+      )}
+      {team && (
+        <>
+          <div className="mb-4 flex items-center gap-3">
+            <Crest url={team.crest} size="h-14 w-14" />
+            <div>
+              <h2 className="text-xl font-bold">{team.name}</h2>
+              {team.coach && <p className="text-sm text-[var(--muted)]">Coach: {team.coach}</p>}
+            </div>
+          </div>
+
+          <dl className="space-y-2 text-sm">
+            {team.founded && (
+              <div className="flex justify-between">
+                <dt className="text-[var(--muted)]">Founded</dt>
+                <dd>{team.founded}</dd>
+              </div>
             )}
-          </div>
-          <button onClick={onClose} aria-label="Close" className="text-xl text-[var(--muted)]">
-            ✕
-          </button>
-        </div>
+            {team.venue && (
+              <div className="flex justify-between">
+                <dt className="text-[var(--muted)]">Stadium</dt>
+                <dd>{team.venue}</dd>
+              </div>
+            )}
+            {team.colors && (
+              <div className="flex justify-between">
+                <dt className="text-[var(--muted)]">Club colours</dt>
+                <dd>{team.colors}</dd>
+              </div>
+            )}
+            {team.competitions.length > 0 && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--muted)]">Playing in</dt>
+                <dd className="text-right">{team.competitions.join(", ")}</dd>
+              </div>
+            )}
+          </dl>
 
-        <div className="mb-5 flex items-center justify-between text-center">
-          <div className="flex w-1/3 flex-col items-center gap-2">
-            <Crest url={m.home_crest} size="h-12 w-12" />
-            <span className="text-sm">{m.home_team}</span>
-          </div>
-          <div>
-            <p className="text-3xl font-bold tabular-nums">
-              {m.home_score ?? "-"} : {m.away_score ?? "-"}
+          <h3 className="mb-2 mt-5 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+            Squad
+          </h3>
+          {team.squad.length === 0 ? (
+            <p className="text-sm text-[var(--muted)]">
+              The squad list is not included in the free data plan.
             </p>
-            <p className="text-xs text-[var(--muted)]">{statusText[m.status] ?? m.status}</p>
-          </div>
-          <div className="flex w-1/3 flex-col items-center gap-2">
-            <Crest url={m.away_crest} size="h-12 w-12" />
-            <span className="text-sm">{m.away_team}</span>
-          </div>
-        </div>
-
-        <dl className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <dt className="text-[var(--muted)]">Kick-off</dt>
-            <dd>{kickoff}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-[var(--muted)]">Venue</dt>
-            <dd>{m.venue ?? "Not available"}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-[var(--muted)]">Referee</dt>
-            <dd>{m.referee ?? "Not announced"}</dd>
-          </div>
-        </dl>
-
-        <p className="mt-4 text-xs text-[var(--muted)]">
-          Goal scorers and line-ups are not included in the free data plan.
-        </p>
-      </motion.div>
-    </motion.div>
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {team.squad.map((p, i) => (
+                <li key={i} className="flex justify-between gap-2">
+                  <span className="truncate">{p.name}</span>
+                  <span className="text-xs text-[var(--muted)]">{p.position ?? ""}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </Overlay>
   );
 }
 
@@ -310,6 +503,45 @@ function StandingsTable({ rows }: { rows: Row[] }) {
   );
 }
 
+function ScorersTable({ rows }: { rows: Scorer[] }) {
+  return (
+    <div className="overflow-x-auto rounded-xl bg-[var(--card)] p-2">
+      <table className="w-full text-sm">
+        <thead className="text-xs text-[var(--muted)]">
+          <tr>
+            <th className="px-2 py-2 text-left">#</th>
+            <th className="px-2 py-2 text-left">Player</th>
+            <th className="px-2 py-2">P</th>
+            <th className="px-2 py-2">Goals</th>
+            <th className="px-2 py-2">Ast</th>
+            <th className="px-2 py-2">Pen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.name + i} className="border-t border-[var(--chip)] text-center">
+              <td className="px-2 py-2 text-left">{i + 1}</td>
+              <td className="px-2 py-2 text-left">
+                <div className="flex items-center gap-2">
+                  <Crest url={r.crest} size="h-5 w-5" />
+                  <div className="min-w-0">
+                    <p className="truncate">{r.name}</p>
+                    <p className="truncate text-xs text-[var(--muted)]">{r.team}</p>
+                  </div>
+                </div>
+              </td>
+              <td className="px-2 py-2">{r.played ?? "-"}</td>
+              <td className="px-2 py-2 font-bold">{r.goals}</td>
+              <td className="px-2 py-2">{r.assists ?? "-"}</td>
+              <td className="px-2 py-2">{r.penalties ?? "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function Home() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -320,9 +552,12 @@ export default function Home() {
   const [view, setView] = useState("matches");
   const [day, setDay] = useState("today");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [teamId, setTeamId] = useState<number | null>(null);
   const [tableLeague, setTableLeague] = useState("");
   const [table, setTable] = useState<Row[] | null>(null);
   const [tableError, setTableError] = useState("");
+  const [scorers, setScorers] = useState<Scorer[] | null>(null);
+  const [scorersError, setScorersError] = useState("");
 
   useEffect(() => {
     const load = () =>
@@ -332,7 +567,8 @@ export default function Home() {
           setMatches(data.matches ?? []);
           setUpdated(new Date().toLocaleTimeString());
           setLoaded(true);
-        });
+        })
+        .catch(() => setLoaded(true));
 
     load();
     const timer = setInterval(load, 30000);
@@ -354,7 +590,10 @@ export default function Home() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedId(null);
+      if (e.key === "Escape") {
+        setTeamId(null);
+        setSelectedId(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -376,6 +615,19 @@ export default function Home() {
       .catch((err) => setTableError(err.message));
   }, [view, league]);
 
+  useEffect(() => {
+    if (view !== "scorers" || !league) return;
+    setScorers(null);
+    setScorersError("");
+    fetch("/api/scorers?competition=" + encodeURIComponent(league))
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Could not load top scorers");
+        setScorers(data.scorers);
+      })
+      .catch((err) => setScorersError(err.message));
+  }, [view, league]);
+
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
@@ -392,6 +644,11 @@ export default function Home() {
     try {
       localStorage.setItem("favorites", JSON.stringify(next));
     } catch {}
+  }
+
+  function openTeam(id: number) {
+    setSelectedId(null); // close the match pop-up, open the team one
+    setTeamId(id);
   }
 
   const passesFilter = (m: Match) => {
@@ -460,6 +717,12 @@ export default function Home() {
             label="Standings"
             layoutId="view-pill"
             onClick={() => setView("standings")}
+          />
+          <Pill
+            active={view === "scorers"}
+            label="Top scorers"
+            layoutId="view-pill"
+            onClick={() => setView("scorers")}
           />
         </div>
 
@@ -557,20 +820,22 @@ export default function Home() {
           </>
         )}
 
+        {(view === "standings" || view === "scorers") && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {competitions.map((c) => (
+              <Pill
+                key={c}
+                active={league === c}
+                label={c}
+                layoutId="table-pill"
+                onClick={() => setTableLeague(c)}
+              />
+            ))}
+          </div>
+        )}
+
         {view === "standings" && (
           <>
-            <div className="mb-6 flex flex-wrap gap-2">
-              {competitions.map((c) => (
-                <Pill
-                  key={c}
-                  active={league === c}
-                  label={c}
-                  layoutId="table-pill"
-                  onClick={() => setTableLeague(c)}
-                />
-              ))}
-            </div>
-
             {tableError && <p className="text-[var(--muted)]">{tableError}</p>}
             {!table && !tableError && (
               <p className="animate-pulse text-[var(--muted)]">Loading table...</p>
@@ -581,11 +846,32 @@ export default function Home() {
             {table && table.length > 0 && <StandingsTable rows={table} />}
           </>
         )}
+
+        {view === "scorers" && (
+          <>
+            {scorersError && <p className="text-[var(--muted)]">{scorersError}</p>}
+            {!scorers && !scorersError && (
+              <p className="animate-pulse text-[var(--muted)]">Loading top scorers...</p>
+            )}
+            {scorers && scorers.length === 0 && (
+              <p className="text-[var(--muted)]">No scorer data for this league yet.</p>
+            )}
+            {scorers && scorers.length > 0 && <ScorersTable rows={scorers} />}
+          </>
+        )}
       </div>
 
       <AnimatePresence>
         {selected && (
-          <MatchModal key={selected.id} m={selected} onClose={() => setSelectedId(null)} />
+          <MatchModal
+            key={"match" + selected.id}
+            m={selected}
+            onClose={() => setSelectedId(null)}
+            onTeam={openTeam}
+          />
+        )}
+        {teamId !== null && (
+          <TeamModal key={"team" + teamId} id={teamId} onClose={() => setTeamId(null)} />
         )}
       </AnimatePresence>
     </main>

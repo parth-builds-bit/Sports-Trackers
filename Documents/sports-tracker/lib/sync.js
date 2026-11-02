@@ -23,7 +23,9 @@ export async function syncMatches() {
       ADD COLUMN IF NOT EXISTS away_crest TEXT,
       ADD COLUMN IF NOT EXISTS matchday INTEGER,
       ADD COLUMN IF NOT EXISTS venue TEXT,
-      ADD COLUMN IF NOT EXISTS referee TEXT
+      ADD COLUMN IF NOT EXISTS referee TEXT,
+      ADD COLUMN IF NOT EXISTS home_team_id INTEGER,
+      ADD COLUMN IF NOT EXISTS away_team_id INTEGER
   `);
 
   const day = (offset) =>
@@ -42,8 +44,9 @@ export async function syncMatches() {
     await pool.query(
       `INSERT INTO matches
          (id, competition, home_team, away_team, home_crest, away_crest,
-          home_score, away_score, status, utc_date, matchday, venue, referee)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          home_score, away_score, status, utc_date, matchday, venue, referee,
+          home_team_id, away_team_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        ON CONFLICT (id) DO UPDATE SET
          home_crest = EXCLUDED.home_crest,
          away_crest = EXCLUDED.away_crest,
@@ -53,6 +56,8 @@ export async function syncMatches() {
          matchday = EXCLUDED.matchday,
          venue = EXCLUDED.venue,
          referee = EXCLUDED.referee,
+         home_team_id = EXCLUDED.home_team_id,
+         away_team_id = EXCLUDED.away_team_id,
          updated_at = now()`,
       [
         m.id,
@@ -68,6 +73,8 @@ export async function syncMatches() {
         m.matchday ?? null,
         m.venue ?? null,
         m.referees?.[0]?.name ?? null,
+        m.homeTeam.id,
+        m.awayTeam.id,
       ]
     );
   }
