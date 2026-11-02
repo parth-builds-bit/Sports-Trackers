@@ -24,10 +24,15 @@ export async function syncMatches() {
       ADD COLUMN IF NOT EXISTS away_crest TEXT
   `);
 
-  const res = await fetch("https://api.football-data.org/v4/matches", {
+  const day = (offset) =>
+    new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
+  const url = `https://api.football-data.org/v4/matches?dateFrom=${day(-1)}&dateTo=${day(2)}`;
+
+  const res = await fetch(url, {
     headers: { "X-Auth-Token": process.env.FOOTBALL_API_KEY },
     cache: "no-store",
   });
+  if (!res.ok) throw new Error("Football API error " + res.status);
   const data = await res.json();
   const matches = data.matches ?? [];
 

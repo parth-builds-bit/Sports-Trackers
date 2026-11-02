@@ -12,6 +12,8 @@ export async function GET() {
 
   if (stale) await syncMatches();
 
-  const { rows } = await pool.query("SELECT * FROM matches ORDER BY utc_date");
+  const { rows } = await pool.query(
+    "SELECT * FROM matches WHERE utc_date > now() - interval '2 days' ORDER BY utc_date"
+  );
   return Response.json({ matches: rows });
 }
