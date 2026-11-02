@@ -205,9 +205,28 @@ button:focus-visible {
 .team-row { min-height: 29px; gap: 10px; }
 .team-row > span:nth-of-type(2) { font-size: 0.95rem; font-weight: 550; }
 .team-row > span:last-child { min-width: 25px; text-align: right; font-size: 1.15rem; }
+.team-crest-fallback {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 13%, var(--chip));
+  color: var(--accent);
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
 .match-status-group { display: flex; flex-shrink: 0; flex-direction: column; align-items: flex-end; gap: 6px; }
 .match-status-badge {
+  display: inline-flex;
   min-width: 72px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   border-radius: 8px;
   padding: 7px 9px;
   text-align: center;
@@ -220,6 +239,8 @@ button:focus-visible {
 .status-finished { background: var(--chip); color: var(--muted); }
 .status-upcoming { background: color-mix(in srgb, var(--accent) 16%, var(--chip)); color: var(--text); }
 .status-paused { background: var(--chip); color: var(--muted); }
+.live-indicator-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16); }
+.status-halftime .live-indicator-dot { background: #983900; box-shadow: 0 0 0 3px rgba(152, 57, 0, 0.15); }
 .match-kickoff { color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .match-card:has(.status-live) {
   border-color: color-mix(in srgb, #ff5364 42%, var(--line));
