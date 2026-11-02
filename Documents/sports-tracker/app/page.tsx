@@ -115,22 +115,25 @@ function dayKeyOf(iso: string) {
   return "other";
 }
 
-const isLive = (m: Match) => m.status === "IN_PLAY" || m.status === "PAUSED";
+const isLive = (m: Match) =>
+  ["IN_PLAY", "PAUSED", "EXTRA_TIME", "PENALTY_SHOOTOUT"].includes(m.status);
 
 const prettyGroup = (g: string) =>
   g.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
-function statusBadge(m: Match) {
-  if (m.status === "IN_PLAY")
-    return { text: "LIVE", cls: "bg-red-600 text-white animate-pulse" };
-  if (m.status === "PAUSED") return { text: "HT", cls: "bg-amber-500 text-black" };
-  if (m.status === "FINISHED")
-    return { text: "FT", cls: "bg-[var(--chip)] text-[var(--muted)]" };
+function statusBadge(m: Match): { text: string; cls: string; time?: string } {
+  if (m.status === "IN_PLAY") return { text: "Live", cls: "status-live" };
+  if (m.status === "PAUSED") return { text: "Half-time", cls: "status-halftime" };
+  if (m.status === "EXTRA_TIME") return { text: "Extra time", cls: "status-live" };
+  if (m.status === "PENALTY_SHOOTOUT") return { text: "Penalties", cls: "status-live" };
+  if (m.status === "FINISHED") return { text: "Full time", cls: "status-finished" };
+  if (m.status === "POSTPONED") return { text: "Postponed", cls: "status-paused" };
+  if (m.status === "CANCELLED") return { text: "Cancelled", cls: "status-paused" };
   const time = new Date(m.utc_date).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
-  return { text: time, cls: "bg-[var(--chip)] text-[var(--muted)]" };
+  return { text: "Upcoming", time, cls: "status-upcoming" };
 }
 
 function Pill(props: {
@@ -296,9 +299,14 @@ function MatchCard(props: {
           onToggle={() => onToggle(m.away_team)}
         />
       </div>
-      <span className={"rounded px-2 py-1 text-xs font-semibold " + badge.cls}>
-        {badge.text}
-      </span>
+      <div className="match-status-group">
+        <span className={"match-status-badge " + badge.cls}>{badge.text}</span>
+        {badge.time && (
+          <time className="match-kickoff" dateTime={m.utc_date}>
+            {badge.time}
+          </time>
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -649,6 +657,9 @@ export default function Home() {
   const [accent, setAccent] = useState("green");
   const [view, setView] = useState("matches");
   const [day, setDay] = useState("today");
+  const [teamQuery, setTeamQuery] = useState("");
+  const [liveOnly, setLiveOnly] = useState(false);
+  const [timeZone, setTimeZone] = useState("local time");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [extraMatch, setExtraMatch] = useState<Match | null>(null);
   const [teamId, setTeamId] = useState<number | null>(null);
@@ -662,6 +673,10 @@ export default function Home() {
   const [fixturesError, setFixturesError] = useState("");
   const [matchday, setMatchday] = useState<number | null>(null);
   const [requestedMatchday, setRequestedMatchday] = useState<number | null>(null);
+
+  useEffect(() => {
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || "local time");
+  }, []);
 
   useEffect(() => {
     const load = () =>
@@ -791,19 +806,28 @@ export default function Home() {
   const competitions = Array.from(new Set(matches.map((m) => m.competition)));
 
   const passesFilter = (m: Match) => {
-    if (filter === "ALL") return true;
-    if (filter === "FAV")
-      return favorites.includes(m.home_team) || favorites.includes(m.away_team);
-    return m.competition === filter;
+    const passesLeague =
+      filter === "ALL"
+        ? true
+        : filter === "FAV"
+          ? favorites.includes(m.home_team) || favorites.includes(m.away_team)
+          : m.competition === filter;
+    if (!passesLeague) return false;
+    const query = teamQuery.trim().toLocaleLowerCase();
+    return (
+      !query ||
+      `${m.home_team} ${m.away_team}`.toLocaleLowerCase().includes(query)
+    );
   };
 
   const liveMatches = matches.filter((m) => isLive(m) && passesFilter(m));
-  const showLive = day === "today" && filter === "ALL" && liveMatches.length > 0;
+  const showLive =
+    liveMatches.length > 0 && (liveOnly || (day === "today" && filter === "ALL"));
 
   const visible = matches.filter(
     (m) =>
       passesFilter(m) &&
-      dayKeyOf(m.utc_date) === day &&
+      (liveOnly ? isLive(m) : dayKeyOf(m.utc_date) === day) &&
       !(showLive && isLive(m))
   );
 
@@ -917,11 +941,31 @@ export default function Home() {
                 <span className="filter-menu-icon" aria-hidden="true">☷</span>
                 <span className="filter-menu-title">Filters</span>
                 <span className="filter-menu-selection">
-                  {selectedDayLabel} <span aria-hidden="true">·</span> {selectedLeagueLabel}
+                  {liveOnly ? "Live only" : selectedDayLabel} <span aria-hidden="true">·</span> {selectedLeagueLabel}
+                  {teamQuery.trim() && ` · ${teamQuery.trim()}`}
                 </span>
                 <span className="filter-menu-chevron" aria-hidden="true">⌄</span>
               </summary>
               <div className="filter-menu-panel">
+                <section className="filter-menu-group">
+                  <label className="filter-search-label" htmlFor="match-team-search">Find a team</label>
+                  <input
+                    id="match-team-search"
+                    type="search"
+                    value={teamQuery}
+                    onChange={(event) => setTeamQuery(event.target.value)}
+                    placeholder="Search team names"
+                    className="filter-team-search"
+                  />
+                  <label className="live-only-toggle">
+                    <input
+                      type="checkbox"
+                      checked={liveOnly}
+                      onChange={(event) => setLiveOnly(event.target.checked)}
+                    />
+                    <span>Show live matches only</span>
+                  </label>
+                </section>
                 <section className="filter-menu-group">
                   <h2>Day</h2>
                   <div className="filter-menu-days">
@@ -953,11 +997,17 @@ export default function Home() {
               </div>
             </details>
 
+            <p className="timezone-note">Kick-off times shown in {timeZone}</p>
+
             {!loaded && <CardSkeletons count={5} />}
 
             {loaded && visible.length === 0 && !showLive && (
               <p className="text-[var(--muted)]">
-                {filter === "FAV"
+                {liveOnly
+                  ? "No live matches found with these filters."
+                  : teamQuery.trim()
+                    ? `No matches found for “${teamQuery.trim()}” on ${selectedDayLabel.toLowerCase()}.`
+                    : filter === "FAV"
                   ? "No matches for your favorite teams on this day. Tap a ★ next to a team to add one."
                   : "No matches on this day."}
               </p>
