@@ -1057,7 +1057,7 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               className="font-display text-2xl font-bold sm:text-3xl"
             >
-              ⚽ Live Football <span className="text-[var(--accent)]">Scores</span>
+              ⚽ The Match <span className="text-[var(--accent)]">Centre</span>
             </motion.h1>
             <p className="mb-3 text-sm text-[var(--muted)]">Last updated: {updated}</p>
           </div>
