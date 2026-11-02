@@ -1,17 +1,9 @@
 import { pool } from "@/lib/sync";
 
-// the API identifies leagues by short codes, our database stores names
-export const CODES = {
-  "Premier League": "PL",
-  "Primera Division": "PD",
-  "Serie A": "SA",
-  "Bundesliga": "BL1",
-  "Ligue 1": "FL1",
-  "Eredivisie": "DED",
-  "Primeira Liga": "PPL",
-  "Campeonato Brasileiro Série A": "BSA",
-  "Championship": "ELC",
-};
+// the 12 competitions on the free plan
+export const ALLOWED = [
+  "PL", "ELC", "PD", "SA", "BL1", "FL1", "DED", "PPL", "BSA", "CL", "EC", "WC",
+];
 
 // fetch from the football API, but reuse a saved copy if it is newer than maxAgeMs
 export async function cachedGet(key, path, maxAgeMs) {

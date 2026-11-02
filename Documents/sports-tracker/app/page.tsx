@@ -33,6 +33,8 @@ type Row = {
   points: number;
 };
 
+type Group = { name: string | null; table: Row[] };
+
 type Scorer = {
   name: string;
   nationality: string | null;
@@ -71,6 +73,22 @@ type TeamInfo = {
   squad: { name: string; position: string | null; nationality: string | null }[];
 };
 
+// the 12 competitions on the free plan
+const COMPETITIONS = [
+  { code: "PL", name: "Premier League" },
+  { code: "ELC", name: "Championship" },
+  { code: "PD", name: "La Liga" },
+  { code: "SA", name: "Serie A" },
+  { code: "BL1", name: "Bundesliga" },
+  { code: "FL1", name: "Ligue 1" },
+  { code: "DED", name: "Eredivisie" },
+  { code: "PPL", name: "Primeira Liga" },
+  { code: "BSA", name: "Brasileirão" },
+  { code: "CL", name: "Champions League" },
+  { code: "EC", name: "Euros" },
+  { code: "WC", name: "World Cup" },
+];
+
 const DAYS = [
   { key: "yesterday", label: "Yesterday", offset: -1 },
   { key: "today", label: "Today", offset: 0 },
@@ -88,6 +106,9 @@ function dayKeyOf(iso: string) {
 }
 
 const isLive = (m: Match) => m.status === "IN_PLAY" || m.status === "PAUSED";
+
+const prettyGroup = (g: string) =>
+  g.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
 function statusBadge(m: Match) {
   if (m.status === "IN_PLAY")
@@ -226,7 +247,7 @@ function MatchCard(props: {
   );
 }
 
-// the dark background + white-ish panel used by every pop-up
+// the dark background + panel used by every pop-up
 function Overlay(props: { onClose: () => void; children: React.ReactNode }) {
   return (
     <motion.div
@@ -552,12 +573,18 @@ export default function Home() {
   const [view, setView] = useState("matches");
   const [day, setDay] = useState("today");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [extraMatch, setExtraMatch] = useState<Match | null>(null);
   const [teamId, setTeamId] = useState<number | null>(null);
-  const [tableLeague, setTableLeague] = useState("");
-  const [table, setTable] = useState<Row[] | null>(null);
+
+  const [leagueCode, setLeagueCode] = useState("PL");
+  const [groups, setGroups] = useState<Group[] | null>(null);
   const [tableError, setTableError] = useState("");
   const [scorers, setScorers] = useState<Scorer[] | null>(null);
   const [scorersError, setScorersError] = useState("");
+  const [fixtures, setFixtures] = useState<Match[] | null>(null);
+  const [fixturesError, setFixturesError] = useState("");
+  const [matchday, setMatchday] = useState<number | null>(null);
+  const [requestedMatchday, setRequestedMatchday] = useState<number | null>(null);
 
   useEffect(() => {
     const load = () =>
@@ -593,40 +620,59 @@ export default function Home() {
       if (e.key === "Escape") {
         setTeamId(null);
         setSelectedId(null);
+        setExtraMatch(null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const competitions = Array.from(new Set(matches.map((m) => m.competition)));
-  const league = tableLeague || competitions[0] || "";
-
   useEffect(() => {
-    if (view !== "standings" || !league) return;
-    setTable(null);
+    if (view !== "standings") return;
+    setGroups(null);
     setTableError("");
-    fetch("/api/standings?competition=" + encodeURIComponent(league))
+    fetch("/api/standings?code=" + leagueCode)
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Could not load the table");
-        setTable(data.table);
+        setGroups(data.groups);
       })
       .catch((err) => setTableError(err.message));
-  }, [view, league]);
+  }, [view, leagueCode]);
 
   useEffect(() => {
-    if (view !== "scorers" || !league) return;
+    if (view !== "scorers") return;
     setScorers(null);
     setScorersError("");
-    fetch("/api/scorers?competition=" + encodeURIComponent(league))
+    fetch("/api/scorers?code=" + leagueCode)
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Could not load top scorers");
         setScorers(data.scorers);
       })
       .catch((err) => setScorersError(err.message));
-  }, [view, league]);
+  }, [view, leagueCode]);
+
+  useEffect(() => {
+    if (view !== "fixtures") return;
+    setFixtures(null);
+    setFixturesError("");
+    const query =
+      "/api/fixtures?code=" + leagueCode + (requestedMatchday ? "&matchday=" + requestedMatchday : "");
+    fetch(query)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Could not load fixtures");
+        setFixtures(data.matches);
+        setMatchday(data.matchday);
+      })
+      .catch((err) => setFixturesError(err.message));
+  }, [view, leagueCode, requestedMatchday]);
+
+  function selectLeague(code: string) {
+    setLeagueCode(code);
+    setRequestedMatchday(null); // back to the current matchday
+  }
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
@@ -648,8 +694,11 @@ export default function Home() {
 
   function openTeam(id: number) {
     setSelectedId(null); // close the match pop-up, open the team one
+    setExtraMatch(null);
     setTeamId(id);
   }
+
+  const competitions = Array.from(new Set(matches.map((m) => m.competition)));
 
   const passesFilter = (m: Match) => {
     if (filter === "ALL") return true;
@@ -668,17 +717,35 @@ export default function Home() {
       !(showLive && isLive(m))
   );
 
-  const groups: Record<string, Match[]> = {};
+  const groupsByLeague: Record<string, Match[]> = {};
   for (const m of visible) {
-    (groups[m.competition] ??= []).push(m);
+    (groupsByLeague[m.competition] ??= []).push(m);
   }
 
-  const selected = matches.find((m) => m.id === selectedId) ?? null;
+  // fixtures grouped by date
+  const fixturesByDate: Record<string, Match[]> = {};
+  for (const m of fixtures ?? []) {
+    const label = new Date(m.utc_date).toLocaleDateString([], {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+    (fixturesByDate[label] ??= []).push(m);
+  }
+
+  const modalMatch = matches.find((m) => m.id === selectedId) ?? extraMatch;
 
   const leagueFilters = [
     { key: "ALL", label: "All" },
     { key: "FAV", label: "★ Favorites" },
     ...competitions.map((c) => ({ key: c, label: c })),
+  ];
+
+  const views = [
+    { key: "matches", label: "Matches" },
+    { key: "fixtures", label: "Fixtures" },
+    { key: "standings", label: "Standings" },
+    { key: "scorers", label: "Top scorers" },
   ];
 
   return (
@@ -705,25 +772,16 @@ export default function Home() {
           </motion.button>
         </div>
 
-        <div className="mb-4 flex gap-2">
-          <Pill
-            active={view === "matches"}
-            label="Matches"
-            layoutId="view-pill"
-            onClick={() => setView("matches")}
-          />
-          <Pill
-            active={view === "standings"}
-            label="Standings"
-            layoutId="view-pill"
-            onClick={() => setView("standings")}
-          />
-          <Pill
-            active={view === "scorers"}
-            label="Top scorers"
-            layoutId="view-pill"
-            onClick={() => setView("scorers")}
-          />
+        <div className="mb-4 flex flex-wrap gap-2">
+          {views.map((v) => (
+            <Pill
+              key={v.key}
+              active={view === v.key}
+              label={v.label}
+              layoutId="view-pill"
+              onClick={() => setView(v.key)}
+            />
+          ))}
         </div>
 
         {view === "matches" && (
@@ -788,7 +846,7 @@ export default function Home() {
             )}
 
             <AnimatePresence>
-              {Object.entries(groups).map(([competition, list]) => (
+              {Object.entries(groupsByLeague).map(([competition, list]) => (
                 <motion.section
                   key={competition}
                   layout
@@ -820,30 +878,90 @@ export default function Home() {
           </>
         )}
 
-        {(view === "standings" || view === "scorers") && (
+        {view !== "matches" && (
           <div className="mb-6 flex flex-wrap gap-2">
-            {competitions.map((c) => (
+            {COMPETITIONS.map((c) => (
               <Pill
-                key={c}
-                active={league === c}
-                label={c}
+                key={c.code}
+                active={leagueCode === c.code}
+                label={c.name}
                 layoutId="table-pill"
-                onClick={() => setTableLeague(c)}
+                onClick={() => selectLeague(c.code)}
               />
             ))}
           </div>
         )}
 
+        {view === "fixtures" && (
+          <>
+            <div className="mb-4 flex items-center justify-between">
+              <button
+                onClick={() => setRequestedMatchday(Math.max(1, (matchday ?? 1) - 1))}
+                disabled={!matchday || matchday <= 1}
+                className="rounded-full bg-[var(--chip)] px-4 py-1 disabled:opacity-40"
+              >
+                ‹
+              </button>
+              <span className="font-semibold">Matchday {matchday ?? "..."}</span>
+              <button
+                onClick={() => setRequestedMatchday((matchday ?? 0) + 1)}
+                disabled={!matchday}
+                className="rounded-full bg-[var(--chip)] px-4 py-1 disabled:opacity-40"
+              >
+                ›
+              </button>
+            </div>
+
+            {fixturesError && <p className="text-[var(--muted)]">{fixturesError}</p>}
+            {!fixtures && !fixturesError && (
+              <p className="animate-pulse text-[var(--muted)]">Loading fixtures...</p>
+            )}
+            {fixtures && fixtures.length === 0 && (
+              <p className="text-[var(--muted)]">No matches for this matchday.</p>
+            )}
+
+            {Object.entries(fixturesByDate).map(([date, list]) => (
+              <section key={date} className="mb-6">
+                <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+                  {date}
+                </h2>
+                <div className="space-y-2">
+                  {list.map((m, i) => (
+                    <MatchCard
+                      key={m.id}
+                      m={m}
+                      i={i}
+                      favorites={favorites}
+                      onToggle={toggleFavorite}
+                      onOpen={() => setExtraMatch(m)}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </>
+        )}
+
         {view === "standings" && (
           <>
             {tableError && <p className="text-[var(--muted)]">{tableError}</p>}
-            {!table && !tableError && (
+            {!groups && !tableError && (
               <p className="animate-pulse text-[var(--muted)]">Loading table...</p>
             )}
-            {table && table.length === 0 && (
-              <p className="text-[var(--muted)]">No table data for this league yet.</p>
+            {groups && groups.length === 0 && (
+              <p className="text-[var(--muted)]">No table data for this competition yet.</p>
             )}
-            {table && table.length > 0 && <StandingsTable rows={table} />}
+            {groups &&
+              groups.map((g, i) => (
+                <section key={(g.name ?? "table") + i} className="mb-6">
+                  {g.name && (
+                    <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+                      {prettyGroup(g.name)}
+                    </h2>
+                  )}
+                  <StandingsTable rows={g.table} />
+                </section>
+              ))}
           </>
         )}
 
@@ -854,7 +972,7 @@ export default function Home() {
               <p className="animate-pulse text-[var(--muted)]">Loading top scorers...</p>
             )}
             {scorers && scorers.length === 0 && (
-              <p className="text-[var(--muted)]">No scorer data for this league yet.</p>
+              <p className="text-[var(--muted)]">No scorer data for this competition yet.</p>
             )}
             {scorers && scorers.length > 0 && <ScorersTable rows={scorers} />}
           </>
@@ -862,11 +980,14 @@ export default function Home() {
       </div>
 
       <AnimatePresence>
-        {selected && (
+        {modalMatch && (
           <MatchModal
-            key={"match" + selected.id}
-            m={selected}
-            onClose={() => setSelectedId(null)}
+            key={"match" + modalMatch.id}
+            m={modalMatch}
+            onClose={() => {
+              setSelectedId(null);
+              setExtraMatch(null);
+            }}
             onTeam={openTeam}
           />
         )}

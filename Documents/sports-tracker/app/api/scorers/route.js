@@ -1,10 +1,9 @@
-import { CODES, cachedGet } from "@/lib/football";
+import { ALLOWED, cachedGet } from "@/lib/football";
 
 export async function GET(request) {
-  const name = new URL(request.url).searchParams.get("competition");
-  const code = CODES[name];
-  if (!code) {
-    return Response.json({ error: "No scorers available for this league" }, { status: 404 });
+  const code = new URL(request.url).searchParams.get("code");
+  if (!ALLOWED.includes(code)) {
+    return Response.json({ error: "Unknown competition" }, { status: 404 });
   }
 
   try {
