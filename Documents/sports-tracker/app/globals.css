@@ -165,6 +165,76 @@ button:focus-visible {
   margin-bottom: 20px;
 }
 
+.match-filter-menu {
+  position: relative;
+  z-index: 5;
+  margin: 0 0 22px;
+}
+.filter-menu-trigger {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 11px;
+  padding: 0 15px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  cursor: pointer;
+  list-style: none;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.filter-menu-trigger::-webkit-details-marker { display: none; }
+.filter-menu-trigger:hover,
+.match-filter-menu[open] > .filter-menu-trigger {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+}
+.filter-menu-icon { color: var(--accent); font-size: 1.15rem; line-height: 1; }
+.filter-menu-title { font-weight: 700; }
+.filter-menu-selection { margin-left: auto; color: var(--muted); font-size: 0.88rem; }
+.filter-menu-chevron { color: var(--muted); transition: transform 160ms ease; }
+.match-filter-menu[open] .filter-menu-chevron { transform: rotate(180deg); }
+.filter-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  max-height: min(62vh, 520px);
+  overflow-y: auto;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+}
+.filter-menu-group + .filter-menu-group { margin-top: 18px; }
+.filter-menu-group h2 {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.filter-menu-days,
+.filter-menu-leagues { display: grid; gap: 8px; }
+.filter-menu-days { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.filter-menu-leagues { grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
+.filter-menu-days .filter-pill,
+.filter-menu-leagues .filter-pill {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  white-space: normal;
+  text-align: center;
+  font-size: 0.84rem;
+}
+
 .tracker-container table { border-collapse: collapse; }
 .tracker-container table th { font-weight: 700; letter-spacing: 0.04em; }
 .tracker-container table tbody tr { transition: background 140ms ease; }
@@ -183,6 +253,11 @@ button:focus-visible {
   .tracker-header h1 { max-width: 280px; font-size: clamp(1.85rem, 9vw, 2.55rem); }
   .tracker-header > button { width: 42px; height: 42px; }
   .filter-pill { min-height: 38px; padding: 8px 13px; font-size: 0.83rem; }
+  .match-filter-menu { margin-bottom: 18px; }
+  .filter-menu-trigger { min-height: 46px; padding: 0 12px; }
+  .filter-menu-selection { font-size: 0.78rem; }
+  .filter-menu-panel { padding: 14px; }
+  .filter-menu-leagues { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .match-card { min-height: 88px; gap: 9px; padding: 12px 11px; border-radius: 14px; }
   .team-row { gap: 7px; }
   .team-row > span:nth-of-type(2) { font-size: 0.87rem; }
