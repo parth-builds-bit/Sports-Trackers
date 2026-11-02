@@ -17,11 +17,13 @@ export async function syncMatches() {
     )
   `);
 
-  // adds the new columns to your existing table (does nothing if they already exist)
   await pool.query(`
     ALTER TABLE matches
       ADD COLUMN IF NOT EXISTS home_crest TEXT,
-      ADD COLUMN IF NOT EXISTS away_crest TEXT
+      ADD COLUMN IF NOT EXISTS away_crest TEXT,
+      ADD COLUMN IF NOT EXISTS matchday INTEGER,
+      ADD COLUMN IF NOT EXISTS venue TEXT,
+      ADD COLUMN IF NOT EXISTS referee TEXT
   `);
 
   const day = (offset) =>
@@ -40,14 +42,17 @@ export async function syncMatches() {
     await pool.query(
       `INSERT INTO matches
          (id, competition, home_team, away_team, home_crest, away_crest,
-          home_score, away_score, status, utc_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          home_score, away_score, status, utc_date, matchday, venue, referee)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        ON CONFLICT (id) DO UPDATE SET
          home_crest = EXCLUDED.home_crest,
          away_crest = EXCLUDED.away_crest,
          home_score = EXCLUDED.home_score,
          away_score = EXCLUDED.away_score,
          status = EXCLUDED.status,
+         matchday = EXCLUDED.matchday,
+         venue = EXCLUDED.venue,
+         referee = EXCLUDED.referee,
          updated_at = now()`,
       [
         m.id,
@@ -60,6 +65,9 @@ export async function syncMatches() {
         m.score.fullTime.away,
         m.status,
         m.utcDate,
+        m.matchday ?? null,
+        m.venue ?? null,
+        m.referees?.[0]?.name ?? null,
       ]
     );
   }
