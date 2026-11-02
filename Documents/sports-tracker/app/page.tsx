@@ -175,12 +175,40 @@ function PillRow({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Crest({ url, size = "h-6 w-6" }: { url: string | null; size?: string }) {
-  if (!url) return <span className={"inline-block shrink-0 " + size} />;
+function Crest({
+  url,
+  size = "h-6 w-6",
+  label,
+}: {
+  url: string | null;
+  size?: string;
+  label?: string;
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  if (!url || failedUrl === url) {
+    const initials = label
+      ?.trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "⚽";
+    return (
+      <span className={"team-crest-fallback " + size} role="img" aria-label={label ? `${label} logo placeholder` : "Team logo placeholder"}>
+        {initials}
+      </span>
+    );
+  }
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="" className={"shrink-0 object-contain " + size} />
+      <img
+        src={url}
+        alt=""
+        onError={() => setFailedUrl(url)}
+        className={"shrink-0 object-contain " + size}
+      />
     </>
   );
 }
@@ -258,7 +286,7 @@ function TeamRow(props: {
       >
         ★
       </motion.button>
-      <Crest url={props.crest} />
+      <Crest url={props.crest} label={props.name} />
       <span className="flex-1 truncate">{props.name}</span>
       <Score value={props.score} />
     </div>
@@ -301,7 +329,10 @@ function MatchCard(props: {
         />
       </div>
       <div className="match-status-group">
-        <span className={"match-status-badge " + badge.cls}>{badge.text}</span>
+        <span className={"match-status-badge " + badge.cls}>
+          {isLive(m) && <span className="live-indicator-dot" aria-hidden="true" />}
+          {badge.text}
+        </span>
         {badge.time && (
           <time className="match-kickoff" dateTime={m.utc_date}>
             {badge.time}
