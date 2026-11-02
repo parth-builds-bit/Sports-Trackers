@@ -142,7 +142,7 @@ function Pill(props: {
   return (
     <button
       onClick={props.onClick}
-      className="relative shrink-0 whitespace-nowrap rounded-full bg-[var(--chip)] px-3 py-1.5 text-sm"
+      className="filter-pill relative shrink-0 whitespace-nowrap rounded-full bg-[var(--chip)] px-3 py-1.5 text-sm"
     >
       {props.active && (
         <motion.span
@@ -165,7 +165,7 @@ function Pill(props: {
 // a row of pills that scrolls sideways on phones and wraps on bigger screens
 function PillRow({ children }: { children: React.ReactNode }) {
   return (
-    <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+    <div className="filter-row no-scrollbar mb-4 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
       {children}
     </div>
   );
@@ -240,7 +240,7 @@ function TeamRow(props: {
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 py-1">
+    <div className="team-row flex items-center gap-2 py-1">
       <motion.button
         onClick={(e) => {
           e.stopPropagation(); // don't open the details when only starring
@@ -278,7 +278,7 @@ function MatchCard(props: {
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ y: -2, scale: 1.01 }}
       onClick={() => onOpen(m.id)}
-      className="flex cursor-pointer items-center gap-3 rounded-xl bg-[var(--card)] p-3 shadow-sm"
+      className="match-card flex cursor-pointer items-center gap-3 rounded-xl bg-[var(--card)] p-3 shadow-sm"
     >
       <div className="min-w-0 flex-1">
         <TeamRow
@@ -839,12 +839,12 @@ export default function Home() {
   ];
 
   const sectionTitle =
-    "font-display mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]";
+    "section-title font-display mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]";
 
   return (
-    <main className="min-h-screen overflow-x-hidden p-3 sm:p-4">
-      <div className="mx-auto max-w-2xl">
-        <div className="flex items-start justify-between gap-3">
+    <main className="tracker-shell min-h-screen overflow-x-hidden p-3 sm:p-4">
+      <div className="tracker-container mx-auto max-w-2xl">
+        <div className="tracker-header flex items-start justify-between gap-3">
           <div>
             <motion.h1
               initial={{ opacity: 0, y: -20 }}
