@@ -838,6 +838,10 @@ export default function Home() {
     { key: "scorers", label: "Top scorers" },
   ];
 
+  const selectedDayLabel = DAYS.find((d) => d.key === day)?.label ?? "Today";
+  const selectedLeagueLabel =
+    leagueFilters.find((f) => f.key === filter)?.label.replace("★ ", "") ?? "All";
+
   const sectionTitle =
     "section-title font-display mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]";
 
@@ -899,29 +903,46 @@ export default function Home() {
 
         {view === "matches" && (
           <>
-            <PillRow>
-              {DAYS.map((d) => (
-                <Pill
-                  key={d.key}
-                  active={day === d.key}
-                  label={d.label}
-                  layoutId="day-pill"
-                  onClick={() => setDay(d.key)}
-                />
-              ))}
-            </PillRow>
-
-            <PillRow>
-              {leagueFilters.map((f) => (
-                <Pill
-                  key={f.key}
-                  active={filter === f.key}
-                  label={f.label}
-                  layoutId="league-pill"
-                  onClick={() => setFilter(f.key)}
-                />
-              ))}
-            </PillRow>
+            <details className="match-filter-menu">
+              <summary className="filter-menu-trigger">
+                <span className="filter-menu-icon" aria-hidden="true">☷</span>
+                <span className="filter-menu-title">Filters</span>
+                <span className="filter-menu-selection">
+                  {selectedDayLabel} <span aria-hidden="true">·</span> {selectedLeagueLabel}
+                </span>
+                <span className="filter-menu-chevron" aria-hidden="true">⌄</span>
+              </summary>
+              <div className="filter-menu-panel">
+                <section className="filter-menu-group">
+                  <h2>Day</h2>
+                  <div className="filter-menu-days">
+                    {DAYS.map((d) => (
+                      <Pill
+                        key={d.key}
+                        active={day === d.key}
+                        label={d.label}
+                        layoutId="day-pill"
+                        onClick={() => setDay(d.key)}
+                      />
+                    ))}
+                  </div>
+                </section>
+                <section className="filter-menu-group">
+                  <h2>League</h2>
+                  <div className="filter-menu-leagues">
+                    {leagueFilters.map((f) => (
+                      <Pill
+                        key={f.key}
+                        active={filter === f.key}
+                        label={f.label}
+                        layoutId="league-pill"
+                        onClick={() => setFilter(f.key)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </details>
 
             {!loaded && <CardSkeletons count={5} />}
 
