@@ -104,6 +104,7 @@ const DAYS = [
   { key: "today", label: "Today", offset: 0 },
   { key: "tomorrow", label: "Tomorrow", offset: 1 },
 ];
+const DAY_FILTERS = [{ key: "all", label: "All" }, ...DAYS];
 
 function dayKeyOf(iso: string) {
   const d = new Date(iso).toDateString();
@@ -827,7 +828,7 @@ export default function Home() {
   const visible = matches.filter(
     (m) =>
       passesFilter(m) &&
-      (liveOnly ? isLive(m) : dayKeyOf(m.utc_date) === day) &&
+      (liveOnly ? isLive(m) : day === "all" || dayKeyOf(m.utc_date) === day) &&
       !(showLive && isLive(m))
   );
 
@@ -862,7 +863,7 @@ export default function Home() {
     { key: "scorers", label: "Top scorers" },
   ];
 
-  const selectedDayLabel = DAYS.find((d) => d.key === day)?.label ?? "Today";
+  const selectedDayLabel = day === "all" ? "All dates" : DAY_FILTERS.find((d) => d.key === day)?.label ?? "Today";
   const selectedLeagueLabel =
     leagueFilters.find((f) => f.key === filter)?.label.replace("★ ", "") ?? "All";
 
@@ -969,7 +970,7 @@ export default function Home() {
                 <section className="filter-menu-group">
                   <h2>Day</h2>
                   <div className="filter-menu-days">
-                    {DAYS.map((d) => (
+                    {DAY_FILTERS.map((d) => (
                       <Pill
                         key={d.key}
                         active={day === d.key}
@@ -1008,7 +1009,9 @@ export default function Home() {
                   : teamQuery.trim()
                     ? `No matches found for “${teamQuery.trim()}” on ${selectedDayLabel.toLowerCase()}.`
                     : filter === "FAV"
-                  ? "No matches for your favorite teams on this day. Tap a ★ next to a team to add one."
+                  ? day === "all"
+                    ? "No matches for your favorite teams in the available matches. Tap a ★ next to a team to add one."
+                    : "No matches for your favorite teams on this day. Tap a ★ next to a team to add one."
                   : "No matches on this day."}
               </p>
             )}
