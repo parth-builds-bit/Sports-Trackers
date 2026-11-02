@@ -859,34 +859,43 @@ export default function Home() {
             </motion.h1>
             <p className="mb-3 text-sm text-[var(--muted)]">Last updated: {updated}</p>
           </div>
-          <motion.button
-            onClick={toggleTheme}
-            whileTap={{ scale: 0.85, rotate: 20 }}
-            aria-label="Switch theme"
-            className="shrink-0 rounded-full bg-[var(--chip)] px-3 py-2 text-lg"
-          >
-            {theme === "dark" ? "☀️" : "🌙"}
-          </motion.button>
-        </div>
-
-        <div className="mb-4 flex items-center gap-3">
-          <span className="text-xs text-[var(--muted)]">Accent</span>
-          {ACCENTS.map((a) => (
-            <motion.button
-              key={a.key}
-              onClick={() => chooseAccent(a.key)}
-              whileTap={{ scale: 0.8 }}
-              whileHover={{ scale: 1.15 }}
-              aria-label={a.label + " accent"}
-              style={{ backgroundColor: a.color }}
-              className={
-                "h-6 w-6 rounded-full " +
-                (accent === a.key
-                  ? "ring-2 ring-[var(--text)] ring-offset-2 ring-offset-[var(--bg)]"
-                  : "")
-              }
-            />
-          ))}
+          <details className="appearance-menu">
+            <summary className="appearance-trigger" aria-label="Open appearance settings">
+              <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
+              <span className="appearance-trigger-label">Appearance</span>
+              <span className="appearance-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div className="appearance-panel">
+              <h2>Appearance</h2>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="appearance-theme-toggle"
+                aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+              >
+                <span>Theme</span>
+                <span>{theme === "dark" ? "Dark" : "Light"}</span>
+              </button>
+              <div className="appearance-accent-group">
+                <span className="appearance-accent-label">Accent color</span>
+                <div className="appearance-accent-options">
+                  {ACCENTS.map((a) => (
+                    <motion.button
+                      key={a.key}
+                      type="button"
+                      onClick={() => chooseAccent(a.key)}
+                      whileTap={{ scale: 0.85 }}
+                      whileHover={{ scale: 1.1 }}
+                      aria-label={a.label + " accent"}
+                      aria-pressed={accent === a.key}
+                      style={{ backgroundColor: a.color }}
+                      className={accent === a.key ? "is-selected" : ""}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
 
         <PillRow>
