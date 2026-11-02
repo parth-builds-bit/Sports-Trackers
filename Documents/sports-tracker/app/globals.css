@@ -300,7 +300,7 @@ button:focus-visible {
 .live-only-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
 .filter-menu-days,
 .filter-menu-leagues { display: grid; gap: 8px; }
-.filter-menu-days { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.filter-menu-days { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .filter-menu-leagues { grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
 .filter-menu-days .filter-pill,
 .filter-menu-leagues .filter-pill {
@@ -342,6 +342,7 @@ button:focus-visible {
   .filter-menu-trigger { min-height: 46px; padding: 0 12px; }
   .filter-menu-selection { font-size: 0.78rem; }
   .filter-menu-panel { padding: 14px; }
+  .filter-menu-days { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filter-menu-leagues { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .match-card { min-height: 88px; gap: 9px; padding: 12px 11px; border-radius: 14px; }
   .team-row { gap: 7px; }
