@@ -21,6 +21,13 @@ type Match = {
   referee: string | null;
 };
 
+type FavoriteTeamSummary = {
+  name: string;
+  crest: string | null;
+  nextMatch: Match | null;
+  opponent: string | null;
+};
+
 type Row = {
   position: number;
   team: string;
@@ -340,6 +347,107 @@ function MatchCard(props: {
         )}
       </div>
     </motion.div>
+  );
+}
+
+function FavoritePanel(props: {
+  teams: FavoriteTeamSummary[];
+  savedCount: number;
+  onSelect: () => void;
+}) {
+  return (
+    <aside className="dashboard-panel favorites-panel" aria-labelledby="favorite-panel-title">
+      <div className="dashboard-panel-heading">
+        <h2 id="favorite-panel-title">Your teams</h2>
+        <span className="dashboard-count">{props.savedCount}</span>
+      </div>
+      {props.teams.length === 0 ? (
+        <div className="dashboard-empty">
+          <p>No teams saved yet.</p>
+          <p>Tap the star beside a team in the match list to pin it here.</p>
+        </div>
+      ) : (
+        <div className="dashboard-favorite-list">
+          {props.teams.map((team) => (
+            <button
+              key={team.name}
+              type="button"
+              className="dashboard-favorite-row"
+              title={`Show matches for ${team.name} and your other saved teams`}
+              onClick={props.onSelect}
+            >
+              <Crest url={team.crest} label={team.name} size="h-8 w-8" />
+              <span className="dashboard-favorite-copy">
+                <strong>{team.name}</strong>
+                <span>
+                  {team.nextMatch
+                    ? isLive(team.nextMatch)
+                      ? `Live now · vs ${team.opponent}`
+                      : `vs ${team.opponent} · ${new Date(team.nextMatch.utc_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    : "No upcoming match loaded"}
+                </span>
+              </span>
+            </button>
+          ))}
+          {props.savedCount > props.teams.length && (
+            <p className="dashboard-more-teams">+{props.savedCount - props.teams.length} more saved</p>
+          )}
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function GlancePanel(props: {
+  todayMatchCount: number;
+  liveTodayCount: number;
+  nextKickoff: Match | undefined;
+  loaded: boolean;
+  updated: string;
+  timeZone: string;
+  onOpen: (id: number) => void;
+}) {
+  return (
+    <aside className="dashboard-panel glance-panel" aria-labelledby="today-glance-title">
+      <div className="dashboard-panel-heading">
+        <h2 id="today-glance-title">Today at a glance</h2>
+        <span className="dashboard-live-label"><span /> Live</span>
+      </div>
+      <div className="dashboard-glance-metrics">
+        <div>
+          <strong>{props.loaded ? props.todayMatchCount : "—"}</strong>
+          <span>Matches today</span>
+        </div>
+        <div>
+          <strong>{props.loaded ? props.liveTodayCount : "—"}</strong>
+          <span>Live now</span>
+        </div>
+      </div>
+      {props.nextKickoff ? (
+        <button
+          type="button"
+          className="dashboard-next-match"
+          onClick={() => props.onOpen(props.nextKickoff!.id)}
+        >
+          <span className="dashboard-next-label">Next kick-off</span>
+          <strong>{props.nextKickoff.home_team} <span>vs</span> {props.nextKickoff.away_team}</strong>
+          <time dateTime={props.nextKickoff.utc_date}>
+            {new Date(props.nextKickoff.utc_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {props.timeZone}
+          </time>
+        </button>
+      ) : (
+        <div className="dashboard-empty">
+          {!props.loaded
+            ? "Loading today’s fixtures…"
+            : props.todayMatchCount > 0 && props.liveTodayCount > 0
+              ? "No more kick-offs scheduled today."
+              : "No upcoming kick-offs found in today’s fixtures."}
+        </div>
+      )}
+      <p className="dashboard-refresh">
+        {props.updated ? `Scores refreshed ${props.updated}` : "Waiting for the first score update"}
+      </p>
+    </aside>
   );
 }
 
@@ -836,6 +944,44 @@ export default function Home() {
   }
 
   const competitions = Array.from(new Set(matches.map((m) => m.competition)));
+  const todayMatches = matches.filter((m) => dayKeyOf(m.utc_date) === "today");
+  const liveTodayCount = todayMatches.filter(isLive).length;
+  const nextKickoff = todayMatches
+    .filter(
+      (m) =>
+        new Date(m.utc_date).getTime() > Date.now() &&
+        !isLive(m) &&
+        !["FINISHED", "POSTPONED", "CANCELLED"].includes(m.status)
+    )
+    .sort((a, b) => new Date(a.utc_date).getTime() - new Date(b.utc_date).getTime())[0];
+  const favoriteTeamCards = favorites.slice(0, 6).map((name) => {
+    const teamMatches = matches.filter((m) => m.home_team === name || m.away_team === name);
+    const crestMatch = teamMatches[0];
+    const nextMatch =
+      teamMatches.find(isLive) ??
+      teamMatches
+        .filter(
+          (m) =>
+            new Date(m.utc_date).getTime() > Date.now() &&
+            !["FINISHED", "POSTPONED", "CANCELLED"].includes(m.status)
+        )
+        .sort((a, b) => new Date(a.utc_date).getTime() - new Date(b.utc_date).getTime())[0];
+    const opponent = nextMatch
+      ? nextMatch.home_team === name
+        ? nextMatch.away_team
+        : nextMatch.home_team
+      : null;
+    return {
+      name,
+      crest: crestMatch
+        ? crestMatch.home_team === name
+          ? crestMatch.home_crest
+          : crestMatch.away_crest
+        : null,
+      nextMatch: nextMatch ?? null,
+      opponent,
+    };
+  });
 
   const passesFilter = (m: Match) => {
     const passesLeague =
@@ -903,7 +1049,7 @@ export default function Home() {
 
   return (
     <main className="tracker-shell min-h-screen overflow-x-hidden p-3 sm:p-4">
-      <div className="tracker-container mx-auto max-w-2xl">
+      <div className="tracker-container mx-auto w-full">
         <div className="tracker-header flex items-start justify-between gap-3">
           <div>
             <motion.h1
@@ -967,6 +1113,17 @@ export default function Home() {
         </PillRow>
 
         {view === "matches" && (
+          <div className="tracker-match-layout">
+            <FavoritePanel
+              teams={favoriteTeamCards}
+              savedCount={favorites.length}
+              onSelect={() => {
+                setFilter("FAV");
+                setDay("all");
+                setTeamQuery("");
+              }}
+            />
+            <div className="tracker-match-main">
           <>
             <details className="match-filter-menu">
               <summary className="filter-menu-trigger">
@@ -1099,6 +1256,17 @@ export default function Home() {
               ))}
             </AnimatePresence>
           </>
+            </div>
+            <GlancePanel
+              todayMatchCount={todayMatches.length}
+              liveTodayCount={liveTodayCount}
+              nextKickoff={nextKickoff}
+              loaded={loaded}
+              updated={updated}
+              timeZone={timeZone}
+              onOpen={setSelectedId}
+            />
+          </div>
         )}
 
         {view !== "matches" && (
