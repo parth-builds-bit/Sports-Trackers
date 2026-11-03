@@ -13,34 +13,38 @@ export default function Image() {
           height: "100%",
           display: "flex",
           flexDirection: "column",
+          alignItems: "center",
           justifyContent: "center",
-          padding: 80,
           background: "#09110d",
           color: "#ecf5ef",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 30 }}>
-          <div
-            style={{
-              display: "flex",
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              border: "8px solid #a3e635",
-            }}
-          />
-          <div style={{ display: "flex", fontSize: 36, color: "#8aa395" }}>
-            Football scores
-          </div>
+        <div
+          style={{
+            display: "flex",
+            width: 64,
+            height: 64,
+            borderRadius: 32,
+            border: "9px solid #a3e635",
+            marginBottom: 30,
+          }}
+        />
+        <div style={{ display: "flex", fontSize: 112, fontWeight: 700, whiteSpace: "nowrap" }}>
+          The Match
         </div>
-
-        <div style={{ display: "flex", gap: 24, fontSize: 100, fontWeight: 700 }}>
-          <span style={{ whiteSpace: "nowrap" }}>The Match</span>
-          <span style={{ whiteSpace: "nowrap", color: "#a3e635" }}>Centre</span>
+        <div
+          style={{
+            display: "flex",
+            fontSize: 112,
+            fontWeight: 700,
+            color: "#a3e635",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Centre
         </div>
-
-        <div style={{ display: "flex", marginTop: 30, fontSize: 40, color: "#8aa395" }}>
-          Scores · Fixtures · Standings · Top scorers
+        <div style={{ display: "flex", marginTop: 28, fontSize: 34, color: "#8aa395" }}>
+          Live football scores
         </div>
       </div>
     ),
