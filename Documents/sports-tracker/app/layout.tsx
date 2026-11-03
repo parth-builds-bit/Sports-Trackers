@@ -6,7 +6,7 @@ const body = DM_Sans({ subsets: ["latin"], variable: "--font-body" });
 const display = Oswald({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
-  title: "Live Football Scores",
+  title: "The Match Centre",
   description: "A live football scores tracker",
 };
 
