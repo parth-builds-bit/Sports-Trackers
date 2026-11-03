@@ -21,6 +21,13 @@ type Match = {
   referee: string | null;
 };
 
+type FavoriteTeamSummary = {
+  name: string;
+  crest: string | null;
+  nextMatch: Match | null;
+  opponent: string | null;
+};
+
 type Row = {
   position: number;
   team: string;
@@ -104,6 +111,7 @@ const DAYS = [
   { key: "today", label: "Today", offset: 0 },
   { key: "tomorrow", label: "Tomorrow", offset: 1 },
 ];
+const DAY_FILTERS = [{ key: "all", label: "All" }, ...DAYS];
 
 function dayKeyOf(iso: string) {
   const d = new Date(iso).toDateString();
@@ -115,22 +123,25 @@ function dayKeyOf(iso: string) {
   return "other";
 }
 
-const isLive = (m: Match) => m.status === "IN_PLAY" || m.status === "PAUSED";
+const isLive = (m: Match) =>
+  ["IN_PLAY", "PAUSED", "EXTRA_TIME", "PENALTY_SHOOTOUT"].includes(m.status);
 
 const prettyGroup = (g: string) =>
   g.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
-function statusBadge(m: Match) {
-  if (m.status === "IN_PLAY")
-    return { text: "LIVE", cls: "bg-red-600 text-white animate-pulse" };
-  if (m.status === "PAUSED") return { text: "HT", cls: "bg-amber-500 text-black" };
-  if (m.status === "FINISHED")
-    return { text: "FT", cls: "bg-[var(--chip)] text-[var(--muted)]" };
+function statusBadge(m: Match): { text: string; cls: string; time?: string } {
+  if (m.status === "IN_PLAY") return { text: "Live", cls: "status-live" };
+  if (m.status === "PAUSED") return { text: "Half-time", cls: "status-halftime" };
+  if (m.status === "EXTRA_TIME") return { text: "Extra time", cls: "status-live" };
+  if (m.status === "PENALTY_SHOOTOUT") return { text: "Penalties", cls: "status-live" };
+  if (m.status === "FINISHED") return { text: "Full time", cls: "status-finished" };
+  if (m.status === "POSTPONED") return { text: "Postponed", cls: "status-paused" };
+  if (m.status === "CANCELLED") return { text: "Cancelled", cls: "status-paused" };
   const time = new Date(m.utc_date).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
-  return { text: time, cls: "bg-[var(--chip)] text-[var(--muted)]" };
+  return { text: "Upcoming", time, cls: "status-upcoming" };
 }
 
 function Pill(props: {
@@ -142,7 +153,7 @@ function Pill(props: {
   return (
     <button
       onClick={props.onClick}
-      className="relative shrink-0 whitespace-nowrap rounded-full bg-[var(--chip)] px-3 py-1.5 text-sm"
+      className="filter-pill relative shrink-0 whitespace-nowrap rounded-full bg-[var(--chip)] px-3 py-1.5 text-sm"
     >
       {props.active && (
         <motion.span
@@ -165,18 +176,46 @@ function Pill(props: {
 // a row of pills that scrolls sideways on phones and wraps on bigger screens
 function PillRow({ children }: { children: React.ReactNode }) {
   return (
-    <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+    <div className="filter-row no-scrollbar mb-4 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
       {children}
     </div>
   );
 }
 
-function Crest({ url, size = "h-6 w-6" }: { url: string | null; size?: string }) {
-  if (!url) return <span className={"inline-block shrink-0 " + size} />;
+function Crest({
+  url,
+  size = "h-6 w-6",
+  label,
+}: {
+  url: string | null;
+  size?: string;
+  label?: string;
+}) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  if (!url || failedUrl === url) {
+    const initials = label
+      ?.trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "⚽";
+    return (
+      <span className={"team-crest-fallback " + size} role="img" aria-label={label ? `${label} logo placeholder` : "Team logo placeholder"}>
+        {initials}
+      </span>
+    );
+  }
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="" className={"shrink-0 object-contain " + size} />
+      <img
+        src={url}
+        alt=""
+        onError={() => setFailedUrl(url)}
+        className={"shrink-0 object-contain " + size}
+      />
     </>
   );
 }
@@ -240,7 +279,7 @@ function TeamRow(props: {
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 py-1">
+    <div className="team-row flex items-center gap-2 py-1">
       <motion.button
         onClick={(e) => {
           e.stopPropagation(); // don't open the details when only starring
@@ -254,7 +293,7 @@ function TeamRow(props: {
       >
         ★
       </motion.button>
-      <Crest url={props.crest} />
+      <Crest url={props.crest} label={props.name} />
       <span className="flex-1 truncate">{props.name}</span>
       <Score value={props.score} />
     </div>
@@ -278,7 +317,7 @@ function MatchCard(props: {
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ y: -2, scale: 1.01 }}
       onClick={() => onOpen(m.id)}
-      className="flex cursor-pointer items-center gap-3 rounded-xl bg-[var(--card)] p-3 shadow-sm"
+      className="match-card flex cursor-pointer items-center gap-3 rounded-xl bg-[var(--card)] p-3 shadow-sm"
     >
       <div className="min-w-0 flex-1">
         <TeamRow
@@ -296,10 +335,119 @@ function MatchCard(props: {
           onToggle={() => onToggle(m.away_team)}
         />
       </div>
-      <span className={"rounded px-2 py-1 text-xs font-semibold " + badge.cls}>
-        {badge.text}
-      </span>
+      <div className="match-status-group">
+        <span className={"match-status-badge " + badge.cls}>
+          {isLive(m) && <span className="live-indicator-dot" aria-hidden="true" />}
+          {badge.text}
+        </span>
+        {badge.time && (
+          <time className="match-kickoff" dateTime={m.utc_date}>
+            {badge.time}
+          </time>
+        )}
+      </div>
     </motion.div>
+  );
+}
+
+function FavoritePanel(props: {
+  teams: FavoriteTeamSummary[];
+  savedCount: number;
+  onSelect: () => void;
+}) {
+  return (
+    <aside className="dashboard-panel favorites-panel" aria-labelledby="favorite-panel-title">
+      <div className="dashboard-panel-heading">
+        <h2 id="favorite-panel-title">Your teams</h2>
+        <span className="dashboard-count">{props.savedCount}</span>
+      </div>
+      {props.teams.length === 0 ? (
+        <div className="dashboard-empty">
+          <p>No teams saved yet.</p>
+          <p>Tap the star beside a team in the match list to pin it here.</p>
+        </div>
+      ) : (
+        <div className="dashboard-favorite-list">
+          {props.teams.map((team) => (
+            <button
+              key={team.name}
+              type="button"
+              className="dashboard-favorite-row"
+              title={`Show matches for ${team.name} and your other saved teams`}
+              onClick={props.onSelect}
+            >
+              <Crest url={team.crest} label={team.name} size="h-8 w-8" />
+              <span className="dashboard-favorite-copy">
+                <strong>{team.name}</strong>
+                <span>
+                  {team.nextMatch
+                    ? isLive(team.nextMatch)
+                      ? `Live now · vs ${team.opponent}`
+                      : `vs ${team.opponent} · ${new Date(team.nextMatch.utc_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    : "No upcoming match loaded"}
+                </span>
+              </span>
+            </button>
+          ))}
+          {props.savedCount > props.teams.length && (
+            <p className="dashboard-more-teams">+{props.savedCount - props.teams.length} more saved</p>
+          )}
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function GlancePanel(props: {
+  todayMatchCount: number;
+  liveTodayCount: number;
+  nextKickoff: Match | undefined;
+  loaded: boolean;
+  updated: string;
+  timeZone: string;
+  onOpen: (id: number) => void;
+}) {
+  return (
+    <aside className="dashboard-panel glance-panel" aria-labelledby="today-glance-title">
+      <div className="dashboard-panel-heading">
+        <h2 id="today-glance-title">Today at a glance</h2>
+        <span className="dashboard-live-label"><span /> Live</span>
+      </div>
+      <div className="dashboard-glance-metrics">
+        <div>
+          <strong>{props.loaded ? props.todayMatchCount : "—"}</strong>
+          <span>Matches today</span>
+        </div>
+        <div>
+          <strong>{props.loaded ? props.liveTodayCount : "—"}</strong>
+          <span>Live now</span>
+        </div>
+      </div>
+      {props.nextKickoff ? (
+        <button
+          type="button"
+          className="dashboard-next-match"
+          onClick={() => props.onOpen(props.nextKickoff!.id)}
+        >
+          <span className="dashboard-next-label">Next kick-off</span>
+          <strong>{props.nextKickoff.home_team} <span>vs</span> {props.nextKickoff.away_team}</strong>
+          <time dateTime={props.nextKickoff.utc_date}>
+            {new Date(props.nextKickoff.utc_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {props.timeZone}
+          </time>
+        </button>
+      ) : (
+        <div className="dashboard-empty">
+          {!props.loaded
+            ? "Loading today’s fixtures…"
+            : props.todayMatchCount > 0 && props.liveTodayCount > 0
+              ? "No more kick-offs scheduled today."
+              : "No upcoming kick-offs found in today’s fixtures."}
+        </div>
+      )}
+      <p className="dashboard-refresh">
+        {props.updated ? `Scores refreshed ${props.updated}` : "Waiting for the first score update"}
+      </p>
+    </aside>
   );
 }
 
@@ -649,6 +797,9 @@ export default function Home() {
   const [accent, setAccent] = useState("green");
   const [view, setView] = useState("matches");
   const [day, setDay] = useState("today");
+  const [teamQuery, setTeamQuery] = useState("");
+  const [liveOnly, setLiveOnly] = useState(false);
+  const [timeZone, setTimeZone] = useState("local time");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [extraMatch, setExtraMatch] = useState<Match | null>(null);
   const [teamId, setTeamId] = useState<number | null>(null);
@@ -662,6 +813,10 @@ export default function Home() {
   const [fixturesError, setFixturesError] = useState("");
   const [matchday, setMatchday] = useState<number | null>(null);
   const [requestedMatchday, setRequestedMatchday] = useState<number | null>(null);
+
+  useEffect(() => {
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || "local time");
+  }, []);
 
   useEffect(() => {
     const load = () =>
@@ -789,21 +944,68 @@ export default function Home() {
   }
 
   const competitions = Array.from(new Set(matches.map((m) => m.competition)));
+  const todayMatches = matches.filter((m) => dayKeyOf(m.utc_date) === "today");
+  const liveTodayCount = todayMatches.filter(isLive).length;
+  const nextKickoff = todayMatches
+    .filter(
+      (m) =>
+        new Date(m.utc_date).getTime() > Date.now() &&
+        !isLive(m) &&
+        !["FINISHED", "POSTPONED", "CANCELLED"].includes(m.status)
+    )
+    .sort((a, b) => new Date(a.utc_date).getTime() - new Date(b.utc_date).getTime())[0];
+  const favoriteTeamCards = favorites.slice(0, 6).map((name) => {
+    const teamMatches = matches.filter((m) => m.home_team === name || m.away_team === name);
+    const crestMatch = teamMatches[0];
+    const nextMatch =
+      teamMatches.find(isLive) ??
+      teamMatches
+        .filter(
+          (m) =>
+            new Date(m.utc_date).getTime() > Date.now() &&
+            !["FINISHED", "POSTPONED", "CANCELLED"].includes(m.status)
+        )
+        .sort((a, b) => new Date(a.utc_date).getTime() - new Date(b.utc_date).getTime())[0];
+    const opponent = nextMatch
+      ? nextMatch.home_team === name
+        ? nextMatch.away_team
+        : nextMatch.home_team
+      : null;
+    return {
+      name,
+      crest: crestMatch
+        ? crestMatch.home_team === name
+          ? crestMatch.home_crest
+          : crestMatch.away_crest
+        : null,
+      nextMatch: nextMatch ?? null,
+      opponent,
+    };
+  });
 
   const passesFilter = (m: Match) => {
-    if (filter === "ALL") return true;
-    if (filter === "FAV")
-      return favorites.includes(m.home_team) || favorites.includes(m.away_team);
-    return m.competition === filter;
+    const passesLeague =
+      filter === "ALL"
+        ? true
+        : filter === "FAV"
+          ? favorites.includes(m.home_team) || favorites.includes(m.away_team)
+          : m.competition === filter;
+    if (!passesLeague) return false;
+    const query = teamQuery.trim().toLocaleLowerCase();
+    return (
+      !query ||
+      `${m.home_team} ${m.away_team}`.toLocaleLowerCase().includes(query)
+    );
   };
 
   const liveMatches = matches.filter((m) => isLive(m) && passesFilter(m));
-  const showLive = day === "today" && filter === "ALL" && liveMatches.length > 0;
+  const showLive =
+    liveMatches.length > 0 && (liveOnly || (day === "today" && filter === "ALL"));
 
   const visible = matches.filter(
     (m) =>
       passesFilter(m) &&
-      dayKeyOf(m.utc_date) === day &&
+      (liveOnly ? isLive(m) : day === "all" || dayKeyOf(m.utc_date) === day) &&
       !(showLive && isLive(m))
   );
 
@@ -838,51 +1040,64 @@ export default function Home() {
     { key: "scorers", label: "Top scorers" },
   ];
 
+  const selectedDayLabel = day === "all" ? "All dates" : DAY_FILTERS.find((d) => d.key === day)?.label ?? "Today";
+  const selectedLeagueLabel =
+    leagueFilters.find((f) => f.key === filter)?.label.replace("★ ", "") ?? "All";
+
   const sectionTitle =
-    "font-display mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]";
+    "section-title font-display mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]";
 
   return (
-    <main className="min-h-screen overflow-x-hidden p-3 sm:p-4">
-      <div className="mx-auto max-w-2xl">
-        <div className="flex items-start justify-between gap-3">
+    <main className="tracker-shell min-h-screen overflow-x-hidden p-3 sm:p-4">
+      <div className="tracker-container mx-auto w-full">
+        <div className="tracker-header flex items-start justify-between gap-3">
           <div>
             <motion.h1
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               className="font-display text-2xl font-bold sm:text-3xl"
             >
-              ⚽ Live Football <span className="text-[var(--accent)]">Scores</span>
+              ⚽ The Match <span className="text-[var(--accent)]">Centre</span>
             </motion.h1>
             <p className="mb-3 text-sm text-[var(--muted)]">Last updated: {updated}</p>
           </div>
-          <motion.button
-            onClick={toggleTheme}
-            whileTap={{ scale: 0.85, rotate: 20 }}
-            aria-label="Switch theme"
-            className="shrink-0 rounded-full bg-[var(--chip)] px-3 py-2 text-lg"
-          >
-            {theme === "dark" ? "☀️" : "🌙"}
-          </motion.button>
-        </div>
-
-        <div className="mb-4 flex items-center gap-3">
-          <span className="text-xs text-[var(--muted)]">Accent</span>
-          {ACCENTS.map((a) => (
-            <motion.button
-              key={a.key}
-              onClick={() => chooseAccent(a.key)}
-              whileTap={{ scale: 0.8 }}
-              whileHover={{ scale: 1.15 }}
-              aria-label={a.label + " accent"}
-              style={{ backgroundColor: a.color }}
-              className={
-                "h-6 w-6 rounded-full " +
-                (accent === a.key
-                  ? "ring-2 ring-[var(--text)] ring-offset-2 ring-offset-[var(--bg)]"
-                  : "")
-              }
-            />
-          ))}
+          <details className="appearance-menu">
+            <summary className="appearance-trigger" aria-label="Open appearance settings">
+              <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
+              <span className="appearance-trigger-label">Appearance</span>
+              <span className="appearance-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div className="appearance-panel">
+              <h2>Appearance</h2>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="appearance-theme-toggle"
+                aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+              >
+                <span>Theme</span>
+                <span>{theme === "dark" ? "Dark" : "Light"}</span>
+              </button>
+              <div className="appearance-accent-group">
+                <span className="appearance-accent-label">Accent color</span>
+                <div className="appearance-accent-options">
+                  {ACCENTS.map((a) => (
+                    <motion.button
+                      key={a.key}
+                      type="button"
+                      onClick={() => chooseAccent(a.key)}
+                      whileTap={{ scale: 0.85 }}
+                      whileHover={{ scale: 1.1 }}
+                      aria-label={a.label + " accent"}
+                      aria-pressed={accent === a.key}
+                      style={{ backgroundColor: a.color }}
+                      className={accent === a.key ? "is-selected" : ""}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
 
         <PillRow>
@@ -898,37 +1113,93 @@ export default function Home() {
         </PillRow>
 
         {view === "matches" && (
+          <div className="tracker-match-layout">
+            <FavoritePanel
+              teams={favoriteTeamCards}
+              savedCount={favorites.length}
+              onSelect={() => {
+                setFilter("FAV");
+                setDay("all");
+                setTeamQuery("");
+              }}
+            />
+            <div className="tracker-match-main">
           <>
-            <PillRow>
-              {DAYS.map((d) => (
-                <Pill
-                  key={d.key}
-                  active={day === d.key}
-                  label={d.label}
-                  layoutId="day-pill"
-                  onClick={() => setDay(d.key)}
-                />
-              ))}
-            </PillRow>
+            <details className="match-filter-menu">
+              <summary className="filter-menu-trigger">
+                <span className="filter-menu-icon" aria-hidden="true">☷</span>
+                <span className="filter-menu-title">Filters</span>
+                <span className="filter-menu-selection">
+                  {liveOnly ? "Live only" : selectedDayLabel} <span aria-hidden="true">·</span> {selectedLeagueLabel}
+                  {teamQuery.trim() && ` · ${teamQuery.trim()}`}
+                </span>
+                <span className="filter-menu-chevron" aria-hidden="true">⌄</span>
+              </summary>
+              <div className="filter-menu-panel">
+                <section className="filter-menu-group">
+                  <label className="filter-search-label" htmlFor="match-team-search">Find a team</label>
+                  <input
+                    id="match-team-search"
+                    type="search"
+                    value={teamQuery}
+                    onChange={(event) => setTeamQuery(event.target.value)}
+                    placeholder="Search team names"
+                    className="filter-team-search"
+                  />
+                  <label className="live-only-toggle">
+                    <input
+                      type="checkbox"
+                      checked={liveOnly}
+                      onChange={(event) => setLiveOnly(event.target.checked)}
+                    />
+                    <span>Show live matches only</span>
+                  </label>
+                </section>
+                <section className="filter-menu-group">
+                  <h2>Day</h2>
+                  <div className="filter-menu-days">
+                    {DAY_FILTERS.map((d) => (
+                      <Pill
+                        key={d.key}
+                        active={day === d.key}
+                        label={d.label}
+                        layoutId="day-pill"
+                        onClick={() => setDay(d.key)}
+                      />
+                    ))}
+                  </div>
+                </section>
+                <section className="filter-menu-group">
+                  <h2>League</h2>
+                  <div className="filter-menu-leagues">
+                    {leagueFilters.map((f) => (
+                      <Pill
+                        key={f.key}
+                        active={filter === f.key}
+                        label={f.label}
+                        layoutId="league-pill"
+                        onClick={() => setFilter(f.key)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </details>
 
-            <PillRow>
-              {leagueFilters.map((f) => (
-                <Pill
-                  key={f.key}
-                  active={filter === f.key}
-                  label={f.label}
-                  layoutId="league-pill"
-                  onClick={() => setFilter(f.key)}
-                />
-              ))}
-            </PillRow>
+            <p className="timezone-note">Kick-off times shown in {timeZone}</p>
 
             {!loaded && <CardSkeletons count={5} />}
 
             {loaded && visible.length === 0 && !showLive && (
               <p className="text-[var(--muted)]">
-                {filter === "FAV"
-                  ? "No matches for your favorite teams on this day. Tap a ★ next to a team to add one."
+                {liveOnly
+                  ? "No live matches found with these filters."
+                  : teamQuery.trim()
+                    ? `No matches found for “${teamQuery.trim()}” on ${selectedDayLabel.toLowerCase()}.`
+                    : filter === "FAV"
+                  ? day === "all"
+                    ? "No matches for your favorite teams in the available matches. Tap a ★ next to a team to add one."
+                    : "No matches for your favorite teams on this day. Tap a ★ next to a team to add one."
                   : "No matches on this day."}
               </p>
             )}
@@ -985,6 +1256,17 @@ export default function Home() {
               ))}
             </AnimatePresence>
           </>
+            </div>
+            <GlancePanel
+              todayMatchCount={todayMatches.length}
+              liveTodayCount={liveTodayCount}
+              nextKickoff={nextKickoff}
+              loaded={loaded}
+              updated={updated}
+              timeZone={timeZone}
+              onOpen={setSelectedId}
+            />
+          </div>
         )}
 
         {view !== "matches" && (
