@@ -6,8 +6,23 @@ const body = DM_Sans({ subsets: ["latin"], variable: "--font-body" });
 const display = Oswald({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://sports-trackers1-six.vercel.app"),
   title: "The Match Centre",
-  description: "A live football scores tracker",
+  description:
+    "Live football scores, fixtures, league tables and top scorers for 12 competitions.",
+  openGraph: {
+    title: "The Match Centre",
+    description:
+      "Live football scores, fixtures, league tables and top scorers for 12 competitions.",
+    siteName: "The Match Centre",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "The Match Centre",
+    description:
+      "Live football scores, fixtures, league tables and top scorers for 12 competitions.",
+  },
 };
 
 export const viewport: Viewport = {
